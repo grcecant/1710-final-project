@@ -26,11 +26,17 @@ abstract sig Data {
     owner: one Employee,
     read_access: set Employee,
     write_access: set Employee
+    file_type: one Filetype
 }
 
 sig EmployeeData extends Data {}
 sig CompanyData extends Data {}
 sig PrivateData extends Data {}
+
+abstract sig Filetype {}
+sig WorkDocument extends Filetype {}
+sig W2 extends Filetype {}
+sig SSN extends Filetype {}
 
 ------ PREDICATES ------
 pred wellformed_employees {

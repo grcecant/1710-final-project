@@ -62,15 +62,18 @@ pred wellformed_teams {
                 t.team_above = t_above
                 t.team_above != t
             }
-        } 
+        }else{
+            t.team_above = none
+        }
     }
 
-    // every employee is on a team, except the CEO
-    // CEO.team = none
-    all e: Employee | e != CEO implies (some e.team and e.team in Team)
+    // every employee is on a team
+    // need to also make sure that every member of the team has thier team pointer going to that team ***
+    // Need to make sure that the CEO team is the company and members are only the CEO and they are the team manager ***
+    all e: Employee | some e.team and e.team in Team
 
     // every employee has a manager, except the CEO, and their manager is the team's manager
-    // NOTE: this is not working right now because the team manager becomes their own manager
+    // NOTE: this is not working right now because the team manager becomes their own manager ***
     all e: Employee | {
         e = Manager implies {
             e.manager = e.team.team_above.team_manager

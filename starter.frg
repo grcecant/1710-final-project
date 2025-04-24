@@ -25,7 +25,7 @@ sig Team {
 abstract sig Data {
     owner: one Employee,
     read_access: set Employee,
-    write_access: set Employee
+    write_access: set Employee,
     file_type: one Filetype
 }
 
@@ -40,15 +40,35 @@ sig SSN extends Filetype {}
 
 ------ PREDICATES ------
 pred wellformed_employees {
-    CEO.manager = none
+    no CEO.manager
     CEO.level = 7
-    CEO.team = none
     -- CEO data access?
 
     // distinct ids 
     all e1, e2: Employee | e1.id != e2.id implies e1 != e2
 }
 
-run {
+pred wellformed_teams {
+    // every team has one manager
+    all t: Team | one m: Manager | t.team_manager = m
+
+    // every employee is on a team, except the CEO
+    CEO.team = none
+    all e: Employee | e != CEO implies (some e.team and e.team in Team)
+
+    // every employee has a manager, except the CEO, and their manager is the team's manager
+    // NOTE: this is not working right now because the team manager becomes their own manager
+    all e: Employee | e != CEO implies e.manager = e.team.team_manager
+
+    // every team has at least one employee
+    all t: Team | some e: Employee | e in t.members
+}
+
+pred init {
     wellformed_employees
-} for 5 Employee, 5 Team, 5 Data
+    wellformed_teams
+}
+
+run {
+    init
+} for 5 Employee, 5 Team, 0 Data

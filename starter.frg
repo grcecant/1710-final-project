@@ -82,6 +82,17 @@ pred wellformed_teams {
     } 
 }
 
+pred ownerPermissions{
+    // the case that a person is the owner of the document they should have full access to the data
+    all data: Data{
+        // the owner should exist in both read_access and write_access
+        data.read_access + data.owner
+        data.write_access + data.owner
+    }
+}
+
+
+
 pred init {
     wellformed_employees
     wellformed_teams

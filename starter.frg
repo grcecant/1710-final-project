@@ -18,7 +18,8 @@ sig Administrator extends Employee {}
 ------- TEAM / DEPARTMENT ------
 sig Team {
     members: set Employee,
-    team_manager: one Manager
+    team_manager: one Manager,
+    team_above: lone Team
 }
 
 ------- DATA --------
@@ -52,16 +53,33 @@ pred wellformed_teams {
     // every team has one manager
     all t: Team | one m: Manager | t.team_manager = m
 
+    // every team has at least one employee
+    all t: Team | some e: Employee | e in t.members
+
+    all t: Team | {
+        t != CEO.team implies {
+            some t_above: Team | {
+                t.team_above = t_above
+                t.team_above != t
+            }
+        } 
+    }
+
     // every employee is on a team, except the CEO
-    CEO.team = none
+    // CEO.team = none
     all e: Employee | e != CEO implies (some e.team and e.team in Team)
 
     // every employee has a manager, except the CEO, and their manager is the team's manager
     // NOTE: this is not working right now because the team manager becomes their own manager
-    all e: Employee | e != CEO implies e.manager = e.team.team_manager
-
-    // every team has at least one employee
-    all t: Team | some e: Employee | e in t.members
+    all e: Employee | {
+        e = Manager implies {
+            e.manager = e.team.team_above.team_manager
+        } else {
+            e != CEO implies {
+                e.manager = e.team.team_manager
+            }
+        }
+    } 
 }
 
 pred init {

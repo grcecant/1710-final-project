@@ -54,6 +54,23 @@ pred wellformed_team_manager_structure {
     }
 }
 
+pred wellformed_file_owner {
+    // every data file has ONE owner
+    all d: Data {
+        one e: Employee | d.owner = e
+        d.owner in d.read_access and d.owner in d.write_access
+        // write access encompasses read access
+        d.read_access in d.write_access
+    }
+}
+
+pred wellformed_file_access {
+    all e: Employee {
+        // every employee has access to their own data
+        all d: Data | d in e.data implies e in d.read_access or e in d.write_access
+    }
+}
+
 ------ TEST SUITES ------
 test suite for wellformed_employees {
     assert wellformed_employee_CEO is necessary for wellformed_employees
@@ -66,7 +83,11 @@ test suite for wellformed_teams {
     assert wellformed_team_team_above is necessary for wellformed_teams
     assert wellformed_team_CEO_team is necessary for wellformed_teams
     assert wellformed_team_manager_structure is necessary for wellformed_teams
+}
 
+test suite for wellformed_files {
+    assert wellformed_file_owner is necessary for wellformed_files
+    assert wellformed_file_access is necessary for wellformed_files
 }
 
 test suite for init {

@@ -1,12 +1,11 @@
-#lang forge
-
+#lang forge/temporal
 
 --- EMPLOYEES ----
 abstract sig Employee {
     manager: lone Employee,
     // level: one Int,
     team: lone Team,
-    data: set Data
+    var data: set Data
 }
 
 sig Manager extends Employee {}
@@ -23,9 +22,9 @@ sig Team {
 
 ------- DATA --------
 abstract sig Data {
-    owner: one Employee,
-    read_access: set Employee,
-    write_access: set Employee
+    var owner: one Employee,
+    var read_access: set Employee,
+    var write_access: set Employee
 }
 
 sig EmployeeData extends Data {}
@@ -83,18 +82,30 @@ pred wellformed_teams {
 }
 
 pred wellformed_files {
-    // every data file has ONE owner
+    // every data file has an owner (could be more than one)
     all d: Data {
-        one e: Employee | d.owner = e
-        d.owner in d.read_access and d.owner in d.write_access
+        one e: Employee | {
+            e in d.read_access 
+            e in d.write_access 
+            d.owner = e
+        }
+        // d.owner in d.read_access and d.owner in d.write_access
         // write access encompasses read access
-        d.read_access in d.write_access
+        // d.read_access in d.write_access
     }
-
+    
     all e: Employee {
         // every employee has access to their own data
-        all d: Data | d in e.data implies e in d.read_access or e in d.write_access
+        all d: Data | {
+            d in e.data implies e in d.read_access or e in d.write_access
+        }
     }
+}
+
+pred initState{
+    wellformed_employees
+    wellformed_teams
+    wellformed_files
 }
 
 /*
@@ -113,25 +124,37 @@ modeling data that should be able to be accessed by anyone of a certain level
 */
 pred grantReadAccess[data: Data, grantAccess: Employee] {
     // check if the owner passed in is actually the owner of the data
-    data'.file_type = data.file_type // the filetype should not change
-    data'.write_access = data.write_access 
+    data.write_access' = data.write_access 
     // in the case that the owner is the one that is passed
-    data'.read_access = data.read_access + grantAccess
+    data.read_access' = data.read_access + grantAccess
 }
 
 pred grantWriteAccess[data: Data, grantAccess: Employee]{
-    data'.file_type = data.file_type
-    data'.read_access = data.read_access
+    data.read_access' = data.read_access
     // in the case that the owner is the one that is passed
-    data'.read_access = data.read_access + grantAccess
+    data.read_access' = data.read_access + grantAccess
 }
 
-pred init {
-    wellformed_employees
-    wellformed_teams
-    wellformed_files
+pred traces{
+    initState
+    // always{
+    //     some d : Data, e : Employee | {
+    //         grantReadAccess[d,e]
+    //         or 
+    //         grantWriteAccess[d,e]
+    //     }
+    // }
+
+    // eventually{
+    //     all d : Data |{
+    //         all e : Employee |{
+    //             e in d.read_access
+    //             e in d.write_access
+    //         }  
+    //     }
+    // }
 }
 
-threeTeam: run {
-    init
-} for 5 Employee, exactly 3 Team, 5 Data
+run {
+    traces
+} for exactly 5 Employee, exactly 3 Team, exactly 5 Data

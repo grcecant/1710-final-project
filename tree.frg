@@ -97,6 +97,35 @@ pred wellformed_files {
     }
 }
 
+/*
+The owner can give write or read access, or transfer ownership
+Multiple owners 
+    - Same access and level 
+    - Both can approve ownership and share
+    - Cannot remove each other/ change permissions for each other 
+At each state, a document should have an owner
+Someone can remove themselves
+    - There must be an owner of the data at all times 
+Can give access to teams as a whole 
+Include different states where the access to a document happens (lab 4 for ref)
+    - In the initial state, only the owner has access to the document 
+modeling data that should be able to be accessed by anyone of a certain level
+*/
+pred grantReadAccess[data: Data, grantAccess: Employee] {
+    // check if the owner passed in is actually the owner of the data
+    data'.file_type = data.file_type // the filetype should not change
+    data'.write_access = data.write_access 
+    // in the case that the owner is the one that is passed
+    data'.read_access = data.read_access + grantAccess
+}
+
+pred grantWriteAccess[data: Data, grantAccess: Employee]{
+    data'.file_type = data.file_type
+    data'.read_access = data.read_access
+    // in the case that the owner is the one that is passed
+    data'.read_access = data.read_access + grantAccess
+}
+
 pred init {
     wellformed_employees
     wellformed_teams

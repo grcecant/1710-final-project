@@ -7,6 +7,10 @@ constraints:
         selector: "members"
         directions:
             - directlyRight
+    - orientation:
+        selector: "owner"
+        directions:
+            - directlyAbove
     
 directives:
   - flag: hideDisconnectedBuiltIns

@@ -25,18 +25,16 @@ sig Team {
 abstract sig Data {
     owner: one Employee,
     read_access: set Employee,
-    write_access: set Employee,
-    file_type: one Filetype
+    write_access: set Employee
 }
 
 sig EmployeeData extends Data {}
 sig CompanyData extends Data {}
 sig PrivateData extends Data {}
 
-abstract sig Filetype {}
-sig WorkDocument extends Filetype {}
-sig W2 extends Filetype {}
-sig SSN extends Filetype {}
+sig WorkDocument extends CompanyData {}
+sig W2 extends EmployeeData {}
+sig SSN extends PrivateData {}
 
 ------ PREDICATES ------
 pred wellformed_employees {
@@ -84,11 +82,27 @@ pred wellformed_teams {
     }
 }
 
+pred wellformed_files {
+    // every data file has ONE owner
+    all d: Data {
+        one e: Employee | d.owner = e
+        d.owner in d.read_access and d.owner in d.write_access
+        // write access encompasses read access
+        d.read_access in d.write_access
+    }
+
+    all e: Employee {
+        // every employee has access to their own data
+        all d: Data | d in e.data implies e in d.read_access or e in d.write_access
+    }
+}
+
 pred init {
     wellformed_employees
     wellformed_teams
+    wellformed_files
 }
 
 threeTeam: run {
     init
-} for 5 Employee, exactly 3 Team, 0 Data, 0 Filetype
+} for 5 Employee, exactly 3 Team, 5 Data

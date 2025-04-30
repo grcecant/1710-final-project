@@ -22,7 +22,7 @@ sig Team {
 
 ------- DATA --------
 abstract sig Data {
-    var owner: one Employee,
+    var owner: set Employee,
     var read_access: set Employee,
     var write_access: set Employee
 }
@@ -85,19 +85,35 @@ pred wellformed_files {
     // every data file has an owner (could be more than one)
     all d: Data {
         one e: Employee | {
-            e in d.read_access 
-            e in d.write_access 
-            d.owner = e
+            d in e.data
+            e in d.owner
         }
-        // d.owner in d.read_access and d.owner in d.write_access
-        // write access encompasses read access
-        // d.read_access in d.write_access
+    }
+
+    all d : Data {
+        d.owner in d.read_access
+        d.owner in d.write_access
+        #d.write_access = 1
+        #d.read_access = 1
     }
     
     all e: Employee {
         // every employee has access to their own data
         all d: Data | {
-            d in e.data implies e in d.read_access or e in d.write_access
+            d in e.data implies e in d.read_access and e in d.write_access
+        }
+    }
+}
+
+pred validStateChange {
+    all e : Employee {
+        all d : Data {
+            e in d.owner implies {
+                d in e.data' 
+                e in d.write_access'
+                e in d.read_access'
+                e in d.owner'
+            }
         }
     }
 }
@@ -127,32 +143,36 @@ pred grantReadAccess[data: Data, grantAccess: Employee] {
     data.write_access' = data.write_access 
     // in the case that the owner is the one that is passed
     data.read_access' = data.read_access + grantAccess
+    // grantAccess.data' = grantAccess.data + data
 }
 
 pred grantWriteAccess[data: Data, grantAccess: Employee]{
     data.read_access' = data.read_access
     // in the case that the owner is the one that is passed
     data.read_access' = data.read_access + grantAccess
+
+    // grantAccess.data' = grantAccess.data + data
 }
 
 pred traces{
     initState
-    // always{
-    //     some d : Data, e : Employee | {
-    //         grantReadAccess[d,e]
-    //         or 
-    //         grantWriteAccess[d,e]
-    //     }
-    // }
+    always{
+        validStateChange
+        some d : Data, e : Employee | {
+            grantReadAccess[d,e]
+            or 
+            grantWriteAccess[d,e]
+        }
+    }
 
-    // eventually{
-    //     all d : Data |{
-    //         all e : Employee |{
-    //             e in d.read_access
-    //             e in d.write_access
-    //         }  
-    //     }
-    // }
+    eventually{
+        all d : Data |{
+            all e : Employee |{
+                e in d.read_access
+                e in d.write_access
+            }  
+        }
+    }
 }
 
 run {

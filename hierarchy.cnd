@@ -1,0 +1,17 @@
+constraints:
+    - orientation:
+        selector: "team_above"
+        directions:
+            - directlyAbove
+    - orientation:
+        selector: "members"
+        directions:
+            - directlyRight
+    - orientation:
+        selector: "owner"
+        directions:
+            - directlyAbove
+    
+directives:
+  - flag: hideDisconnectedBuiltIns
+  - flag: hideDisconnected

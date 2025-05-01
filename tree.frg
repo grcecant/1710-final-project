@@ -154,6 +154,22 @@ pred grantWriteAccess[data: Data, grantAccess: Employee]{
     // grantAccess.data' = grantAccess.data + data
 }
 
+pred grantTeamWriteAccess[data: Data, team: Team]{
+    // for all members in a team, grant them write access
+    all employee: team.members{
+        // even if there are already inside, its fine to just add again since this is a set of members
+        data.write_access' = data.write_access + employee
+    }
+}
+
+pred grantTeamReadAccess[data: Data, team: Team]{
+    // for all members in a tam, grant them read access 
+    all employee: team.members{
+        data.read_access' = data.read_access + employee
+    }
+
+}
+
 pred traces{
     initState
     always{
@@ -162,6 +178,11 @@ pred traces{
             grantReadAccess[d,e]
             or 
             grantWriteAccess[d,e]
+        }
+        some d: Data, t: Team | {
+            grantTeamWriteAccess[d, t]
+            or
+            grantTeamReadAccess[d, t]
         }
     }
 

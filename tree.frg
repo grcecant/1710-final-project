@@ -215,6 +215,17 @@ pred changePermissionTeamTransition {
         d.write_access' != d.write_access
     } |
     #changed <= 1
+
+    // at most one team has its permissions changed -- people not on the team should not have any permissions changed
+    let changedEmployees = { e: Employee |
+        some d: Data |
+            e in d.read_access' iff e not in d.read_access or
+            e in d.write_access' iff e not in d.write_access
+        } |
+    {some t: Team |
+        changedEmployees = t.members and
+        {all t2: Team - t | no (changedEmployees & t2.members) }  
+    }    
 }
 
 pred changePermissionTransition {
@@ -227,8 +238,9 @@ pred changePermissionTransition {
 pred traces{
     initState
     always {validStateChange}
-    always {changePermissionTransition}
+    // always {changePermissionTransition}
     // always {changePermissionIndividualTransition}
+    always {changePermissionTeamTransition}
 
     // // just for now to see how it propogates
     // eventually{

@@ -1,5 +1,8 @@
 #lang forge/temporal
 
+option max_tracelength 12
+option min_tracelength 12
+
 --- EMPLOYEES ----
 abstract sig Employee {
     manager: lone Employee,
@@ -54,7 +57,10 @@ pred wellformed_teams {
 
     // every employee is on exactly one team 
     all e: Employee {
-        all t: Team | e in t.members implies e.team = t
+        all t: Team | {
+            e in t.members implies e.team = t
+            e.team = t implies e in t.members
+        }
         one t: Team | t = e.team
     }
 
@@ -139,53 +145,86 @@ Include different states where the access to a document happens (lab 4 for ref)
 modeling data that should be able to be accessed by anyone of a certain level
 */
 pred grantReadAccess[data: Data, grantAccess: Employee] {
-    // check if the owner passed in is actually the owner of the data
+    // // owner is not the one being granted access
+    grantAccess != data.owner
+
     data.write_access' = data.write_access 
-    // in the case that the owner is the one that is passed
     data.read_access' = data.read_access + grantAccess
-    // grantAccess.data' = grantAccess.data + data
 }
 
 pred grantWriteAccess[data: Data, grantAccess: Employee]{
-    data.read_access' = data.read_access
-    // in the case that the owner is the one that is passed
-    data.read_access' = data.read_access + grantAccess
+    // // owner is not the one being granted access
+    grantAccess != data.owner
 
-    // grantAccess.data' = grantAccess.data + data
+    data.read_access' = data.read_access
+    data.write_access' = data.write_access + grantAccess
+}
+
+pred removeReadAccess[data: Data, grantAccess: Employee]{
+    // // owner cannot have their access removed
+    grantAccess != data.owner
+    data.read_access' = data.read_access - grantAccess
+    data.write_access' = data.write_access
+}
+
+pred removeWriteAccess[data: Data, grantAccess: Employee]{
+    // // owner cannot have their access removed
+    grantAccess != data.owner
+    data.write_access' = data.write_access - grantAccess
+    data.read_access' = data.read_access
 }
 
 pred grantTeamWriteAccess[data: Data, team: Team]{
     // for all members in a team, grant them write access
-    all employee: team.members{
-        // even if there are already inside, its fine to just add again since this is a set of members
-        data.write_access' = data.write_access + employee
-    }
+    data.write_access' = data.write_access + team.members
+    data.read_access' = data.read_access
 }
 
 pred grantTeamReadAccess[data: Data, team: Team]{
-    // for all members in a tam, grant them read access 
-    all employee: team.members{
-        data.read_access' = data.read_access + employee
-    }
+    // for all members in a team, grant them read access 
+    data.read_access' = data.read_access + team.members
+    data.write_access' = data.write_access 
+}
 
+pred changePermissionIndividualTransition {
+    some d : Data, e : Employee | {
+        grantReadAccess[d,e] or
+        grantWriteAccess[d,e] or
+        removeReadAccess[d,e] or
+        removeWriteAccess[d,e]
+    } 
+}
+
+pred changePermissionTeamTransition {
+    some d : Data, t : Team | {
+        grantTeamReadAccess[d,t] or
+        grantTeamWriteAccess[d,t]
+    }
+}
+
+pred changePermissionTransition {
+    // exclusive or: only one should be true at a time
+    // either a team or an individual can be granted access
+    (changePermissionIndividualTransition and not changePermissionTeamTransition) or
+    (changePermissionTeamTransition and not changePermissionIndividualTransition)
+}
+
+pred atMostOneDataChanged {
+    let changed = {d: Data | 
+        d.read_access' != d.read_access or
+        d.write_access' != d.write_access
+    } |
+    #changed <= 1
 }
 
 pred traces{
     initState
-    always{
-        validStateChange
-        some d : Data, e : Employee | {
-            grantReadAccess[d,e]
-            or 
-            grantWriteAccess[d,e]
-        }
-        some d: Data, t: Team | {
-            grantTeamWriteAccess[d, t]
-            or
-            grantTeamReadAccess[d, t]
-        }
-    }
+    always {validStateChange}
+    // always {changePermissionTransition}
+    always {changePermissionIndividualTransition}
+    always {atMostOneDataChanged}
 
+    // just for now to see how it propogates
     eventually{
         all d : Data |{
             all e : Employee |{

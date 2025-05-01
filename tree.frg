@@ -210,11 +210,20 @@ pred changePermissionTransition {
 }
 
 pred atMostOneDataChanged {
+    // CHANGE FOR ONE DATUM
     let changed = {d: Data | 
         d.read_access' != d.read_access or
         d.write_access' != d.write_access
     } |
     #changed <= 1
+
+    // BELOW: CHANGE FOR ONLY ONE EMPLOYEE
+    // let changed = {e: Employee |
+    //     some d: Data |
+    //         (e in d.read_access') and not (e in d.read_access) or
+    //         not (e in d.read_access') and (e in d.read_access)
+    // } |
+    // #changed <= 1
 }
 
 pred traces{
@@ -224,15 +233,15 @@ pred traces{
     always {changePermissionIndividualTransition}
     always {atMostOneDataChanged}
 
-    // just for now to see how it propogates
-    eventually{
-        all d : Data |{
-            all e : Employee |{
-                e in d.read_access
-                e in d.write_access
-            }  
-        }
-    }
+    // // just for now to see how it propogates
+    // eventually{
+    //     all d : Data |{
+    //         all e : Employee |{
+    //             e in d.read_access
+    //             e in d.write_access
+    //         }  
+    //     }
+    // }
 }
 
 run {

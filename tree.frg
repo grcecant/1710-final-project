@@ -190,7 +190,7 @@ pred changePermissionIndividualTransition {
     some d : Data, e : Employee | {
         grantReadAccess[d,e] or
         grantWriteAccess[d,e] or
-        removeReadAccess[d,e] or
+        removeReadAccess[d,e] or 
         removeWriteAccess[d,e]
     } 
 }

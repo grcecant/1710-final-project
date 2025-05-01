@@ -74,7 +74,6 @@ pred wellformed_file_access {
 ------ TEST SUITES ------
 test suite for wellformed_employees {
     assert wellformed_employee_CEO is necessary for wellformed_employees
-
 }
 
 test suite for wellformed_teams {
@@ -90,6 +89,8 @@ test suite for wellformed_files {
     assert wellformed_file_access is necessary for wellformed_files
 }
 
-test suite for init {
-
+test suite for initState {
+    assert wellformed_employees is necessary for initState
+    assert wellformed_teams is necessary for initState
+    assert wellformed_files is necessary for initState
 }

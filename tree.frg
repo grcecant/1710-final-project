@@ -193,6 +193,14 @@ pred changePermissionIndividualTransition {
         removeReadAccess[d,e] or 
         removeWriteAccess[d,e]
     } 
+
+    // at most one employee has their permissions changed
+    let changed = {e: Employee |
+        some d: Data |
+            (e in d.read_access') and not (e in d.read_access) or
+            not (e in d.read_access') and (e in d.read_access)
+    } |
+    #changed <= 1
 }
 
 pred changePermissionTeamTransition {
@@ -200,6 +208,24 @@ pred changePermissionTeamTransition {
         grantTeamReadAccess[d,t] or
         grantTeamWriteAccess[d,t]
     }
+
+    // at most one data has its permissions changed
+    let changed = {d: Data | 
+        d.read_access' != d.read_access or
+        d.write_access' != d.write_access
+    } |
+    #changed <= 1
+
+    // at most one team has its permissions changed -- people not on the team should not have any permissions changed
+    let changedEmployees = { e: Employee |
+        some d: Data |
+            e in d.read_access' iff e not in d.read_access or
+            e in d.write_access' iff e not in d.write_access
+        } |
+    {some t: Team |
+        changedEmployees = t.members and
+        {all t2: Team - t | no (changedEmployees & t2.members) }  
+    }    
 }
 
 pred changePermissionTransition {
@@ -209,30 +235,22 @@ pred changePermissionTransition {
     (changePermissionTeamTransition and not changePermissionIndividualTransition)
 }
 
-pred atMostOneDataChanged {
-    let changed = {d: Data | 
-        d.read_access' != d.read_access or
-        d.write_access' != d.write_access
-    } |
-    #changed <= 1
-}
-
 pred traces{
     initState
     always {validStateChange}
     // always {changePermissionTransition}
-    always {changePermissionIndividualTransition}
-    always {atMostOneDataChanged}
+    // always {changePermissionIndividualTransition}
+    always {changePermissionTeamTransition}
 
-    // just for now to see how it propogates
-    eventually{
-        all d : Data |{
-            all e : Employee |{
-                e in d.read_access
-                e in d.write_access
-            }  
-        }
-    }
+    // // just for now to see how it propogates
+    // eventually{
+    //     all d : Data |{
+    //         all e : Employee |{
+    //             e in d.read_access
+    //             e in d.write_access
+    //         }  
+    //     }
+    // }
 }
 
 run {

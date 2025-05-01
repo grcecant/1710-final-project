@@ -193,6 +193,14 @@ pred changePermissionIndividualTransition {
         removeReadAccess[d,e] or
         removeWriteAccess[d,e]
     } 
+
+    // at most one employee has their permissions changed
+    let changed = {e: Employee |
+        some d: Data |
+            (e in d.read_access') and not (e in d.read_access) or
+            not (e in d.read_access') and (e in d.read_access)
+    } |
+    #changed <= 1
 }
 
 pred changePermissionTeamTransition {
@@ -200,6 +208,13 @@ pred changePermissionTeamTransition {
         grantTeamReadAccess[d,t] or
         grantTeamWriteAccess[d,t]
     }
+
+    // at most one data has its permissions changed
+    let changed = {d: Data | 
+        d.read_access' != d.read_access or
+        d.write_access' != d.write_access
+    } |
+    #changed <= 1
 }
 
 pred changePermissionTransition {
@@ -209,29 +224,11 @@ pred changePermissionTransition {
     (changePermissionTeamTransition and not changePermissionIndividualTransition)
 }
 
-pred atMostOneDataChanged {
-    // CHANGE FOR ONE DATUM
-    let changed = {d: Data | 
-        d.read_access' != d.read_access or
-        d.write_access' != d.write_access
-    } |
-    #changed <= 1
-
-    // BELOW: CHANGE FOR ONLY ONE EMPLOYEE
-    // let changed = {e: Employee |
-    //     some d: Data |
-    //         (e in d.read_access') and not (e in d.read_access) or
-    //         not (e in d.read_access') and (e in d.read_access)
-    // } |
-    // #changed <= 1
-}
-
 pred traces{
     initState
     always {validStateChange}
-    // always {changePermissionTransition}
-    always {changePermissionIndividualTransition}
-    always {atMostOneDataChanged}
+    always {changePermissionTransition}
+    // always {changePermissionIndividualTransition}
 
     // // just for now to see how it propogates
     // eventually{

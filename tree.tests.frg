@@ -71,6 +71,82 @@ pred wellformed_file_access {
     }
 }
 
+pred grant_read_access_test_pred[data: Data, grantAccess: Employee] {
+    grantAccess != data.owner
+
+    data.write_access' = data.write_access 
+    data.read_access' = data.read_access + grantAccess
+}
+
+pred grant_write_access_test_pred[data: Data, grantAccess: Employee] {
+    grantAccess != data.owner
+
+    data.write_access' = data.write_access + grantAccess
+    data.read_access' = data.read_access
+}
+
+pred remove_read_access_test_pred[data: Data, grantAccess: Employee] {
+    grantAccess != data.owner
+    
+    data.read_access' = data.read_access - grantAccess
+    data.write_access' = data.write_access
+}
+
+pred remove_write_access_test_pred[data: Data, grantAccess: Employee] {
+    grantAccess != data.owner
+
+    data.write_access' = data.write_access - grantAccess
+    data.read_access' = data.read_access
+}
+
+pred change_permission_individual_transition_choice {
+    some d : Data, e : Employee | {
+        grantReadAccess[d,e] or
+        grantWriteAccess[d,e] or
+        removeReadAccess[d,e] or
+        removeWriteAccess[d,e]
+    } 
+}
+
+pred at_most_one_employee_data_changed {
+    // at most one employee has their permissions changed
+    let changed = {e: Employee |
+        some d: Data |
+            (e in d.read_access') and not (e in d.read_access) or
+            not (e in d.read_access') and (e in d.read_access)
+    } |
+    #changed <= 1
+}
+
+pred change_team_permission_transition_choice {
+    some d : Data, t : Team | {
+        grantTeamReadAccess[d,t] or
+        grantTeamWriteAccess[d,t]
+    }
+}
+
+pred at_most_one_data_changed {
+    // at most one data has its permissions changed
+    let changed = {d: Data | 
+        d.read_access' != d.read_access or
+        d.write_access' != d.write_access
+    } |
+    #changed <= 1
+}
+
+pred at_most_one_team_changed {
+    let changedEmployees = { e: Employee |
+        some d: Data |
+            e in d.read_access' iff e not in d.read_access or
+            e in d.write_access' iff e not in d.write_access
+        } |
+    {some t: Team |
+        changedEmployees = t.members and
+        {all t2: Team - t | no (changedEmployees & t2.members) }  
+    }  
+}
+
+
 ------ TEST SUITES ------
 test suite for wellformed_employees {
     assert wellformed_employee_CEO is necessary for wellformed_employees
@@ -93,4 +169,41 @@ test suite for initState {
     assert wellformed_employees is necessary for initState
     assert wellformed_teams is necessary for initState
     assert wellformed_files is necessary for initState
+}
+
+test suite for grantReadAccess {
+    assert all d: Data, e: Employee | grant_read_access_test_pred[d, e] is necessary for grantReadAccess[d, e]
+}
+
+test suite for grantWriteAccess {
+    assert all d: Data, e: Employee | grant_write_access_test_pred[d, e] is necessary for grantWriteAccess[d, e]
+}
+
+test suite for removeReadAccess {
+    assert all d: Data, e: Employee | remove_read_access_test_pred[d, e] is necessary for removeReadAccess[d, e]
+}
+
+test suite for removeWriteAccess {
+    assert all d: Data, e: Employee | remove_write_access_test_pred[d, e] is necessary for removeWriteAccess[d, e]
+}
+
+test suite for changePermissionIndividualTransition {
+    assert change_permission_individual_transition_choice is necessary for changePermissionIndividualTransition
+    assert at_most_one_employee_data_changed is necessary for changePermissionIndividualTransition
+}
+
+test suite for changePermissionTeamTransition {
+    assert change_team_permission_transition_choice is necessary for changePermissionTeamTransition
+    assert at_most_one_data_changed is necessary for changePermissionTeamTransition
+    assert at_most_one_team_changed is necessary for changePermissionTeamTransition
+}
+
+test suite for changePermissionTransition {
+    assert {(changePermissionIndividualTransition and not changePermissionTeamTransition) or
+    (changePermissionTeamTransition and not changePermissionIndividualTransition)} is necessary for changePermissionTransition
+}
+
+test suite for traces {
+    assert initState is necessary for traces
+    assert always validStateChange is necessary for traces
 }

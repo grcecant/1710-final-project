@@ -238,9 +238,9 @@ pred changePermissionTransition {
 pred traces{
     initState
     always {validStateChange}
-    // always {changePermissionTransition}
+    always {changePermissionTransition}
     // always {changePermissionIndividualTransition}
-    always {changePermissionTeamTransition}
+    // always {changePermissionTeamTransition}
 
     // // just for now to see how it propogates
     // eventually{

@@ -23,7 +23,7 @@ sig Team {
     team_above: lone Team
 }
 
-sig HRTeam extends Team{}
+sig HRTeam extends Team {}
 
 ------- DATA --------
 abstract sig Data {
@@ -36,15 +36,16 @@ sig EmployeeData extends Data {}
 sig CompanyData extends Data {}
 sig PrivateData extends Data {}
 
-sig WorkDocument extends CompanyData {}
-sig W2 extends EmployeeData {}
-sig SSN extends PrivateData {}
+// sig WorkDocument extends CompanyData {}
+// sig W2 extends EmployeeData {}
+// sig SSN extends PrivateData {}
 
------- PREDICATES ------
+--------------------------- PREDICATES -------------------------
+
+--------- WELLFORMEDNESS ---------
+
 pred wellformed_employees {
     no CEO.manager
-    // CEO.level = 7
-    -- CEO data access?
 }
 
 pred wellformed_teams {
@@ -66,19 +67,17 @@ pred wellformed_teams {
         one t: Team | t = e.team
     }
 
+    // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
+    #{t: Team | no t.team_above} = 1
+
     // every team has a team above it (except the first team), which is linear. CEO is the top of the team hierarchy
     all t: Team {
-        // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
-        #{t: Team | no t.team_above} = 1
-
-        all t: Team {
-            t = CEO.team implies no t.team_above
-            no t.team_above implies {
-                all t2: Team - t | t in t2.^team_above
-            }
+        t = CEO.team implies no t.team_above
+        no t.team_above implies {
+            all t2: Team - t | t in t2.^team_above
         }
+        no t2: Team - t | t.team_above = t2.team_above
     }
-
     CEO.team.members = {CEO}
 
     // an engineer's manager is the manager of their team
@@ -101,37 +100,17 @@ pred wellformed_files {
     all d : Data {
         d.owner in d.read_access
         d.owner in d.write_access
-        #d.write_access = 1
-        #d.read_access = 1
+        // #d.write_access = 1
+        // #d.read_access = 1
     }
     
-    all e: Employee {
+    all e: Employee, d: Data {
         // every employee has access to their own data
-        all d: Data | {
-            d in e.data implies e in d.read_access and e in d.write_access
-        }
+        d in e.data implies e in d.read_access and e in d.write_access
     }
 }
 
-pred validStateChange {
-    all e : Employee {
-        all d : Data {
-            e in d.owner implies {
-                d in e.data' 
-                e in d.write_access'
-                e in d.read_access'
-                e in d.owner'
-            }
-        }
-    }
-}
-
-pred initState{
-    wellformed_employees
-    wellformed_teams
-    assignAllToTeamsButNotAllHR
-    wellformed_files
-}
+---------- DEFINING ACCESS CONTROL ----------
 
 /*
 The owner can give write or read access, or transfer ownership
@@ -156,7 +135,7 @@ pred grantReadAccess[data: Data, grantAccess: Employee] {
 }
 
 pred grantWriteAccess[data: Data, grantAccess: Employee]{
-    // // owner is not the one being granted access
+    // owner is not the one being granted access
     grantAccess != data.owner
 
     data.read_access' = data.read_access
@@ -164,7 +143,7 @@ pred grantWriteAccess[data: Data, grantAccess: Employee]{
 }
 
 pred removeReadAccess[data: Data, grantAccess: Employee]{
-    // // owner cannot have their access removed
+    // owner cannot have their access removed
     grantAccess != data.owner
     data.read_access' = data.read_access - grantAccess
     data.write_access' = data.write_access
@@ -177,16 +156,31 @@ pred removeWriteAccess[data: Data, grantAccess: Employee]{
     data.read_access' = data.read_access
 }
 
+pred grantTeamReadAccess[data: Data, team: Team]{
+    // for all members in a team, grant them read access 
+    data.read_access' = data.read_access + team.members
+    data.write_access' = data.write_access 
+}
+
 pred grantTeamWriteAccess[data: Data, team: Team]{
     // for all members in a team, grant them write access
     data.write_access' = data.write_access + team.members
     data.read_access' = data.read_access
 }
 
-pred grantTeamReadAccess[data: Data, team: Team]{
-    // for all members in a team, grant them read access 
-    data.read_access' = data.read_access + team.members
-    data.write_access' = data.write_access 
+------------------ TRANSITIONS -----------------
+
+pred validStateChange {
+    all e : Employee {
+        all d : Data {
+            e in d.owner implies {
+                d in e.data' 
+                e in d.write_access'
+                e in d.read_access'
+                e in d.owner'
+            }
+        }
+    }
 }
 
 pred changePermissionIndividualTransition {
@@ -238,22 +232,32 @@ pred changePermissionTransition {
     (changePermissionTeamTransition and not changePermissionIndividualTransition)
 }
 
-pred traces{
-    initState
-    always {validStateChange}
-    always {changePermissionTransition}
-    // always {changePermissionIndividualTransition}
-    // always {changePermissionTeamTransition}
+pred accessControlStarting {
+    // HRTeam members can read all EmployeeData
+    all d: EmployeeData, e: Employee | {
+        e in d.read_access iff e.team in HRTeam
+        e.team in HRTeam implies e in d.read_access
+    }
+    
+    // only the owner can read or write PrivateData
+    all d: PrivateData | d.read_access = d.owner and d.write_access = d.owner
+    
+    // company data
+    all d: CompanyData, e: Employee| {
+        // e can read d if they own it, OR if they are a manager (direct or indirect) of someone who owns it
+        e in d.read_access iff (e in d.owner or e in d.owner.^manager)
+        e in d.owner.^manager implies e in d.read_access
+        e = d.owner.manager implies e in d.write_access
+    }
 
-    // // just for now to see how it propogates
-    // eventually{
-    //     all d : Data |{
-    //         all e : Employee |{
-    //             e in d.read_access
-    //             e in d.write_access
-    //         }  
-    //     }
-    // }
+    // all employees own at least one data
+    all e: Employee | {
+        some d: Data | d in e.data
+    }
+}
+
+pred accessControlTransition {
+
 }
 
 pred assignAllToTeamsButNotAllHR {
@@ -262,6 +266,21 @@ pred assignAllToTeamsButNotAllHR {
     some e: Employee | e.team != HRTeam
 }
 
+pred initState{
+    wellformed_employees
+    wellformed_teams
+    assignAllToTeamsButNotAllHR
+    wellformed_files
+}
+
+pred traces{
+    initState
+    accessControlStarting
+    always {validStateChange}
+    always {changePermissionTransition}
+}
+
 run {
     traces
-} for exactly 5 Employee, exactly 3 Team, exactly 5 Data
+// } for exactly 6 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
+} for exactly 6 Employee, exactly 3 Team

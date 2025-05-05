@@ -55,19 +55,23 @@ pred wellformed_team_manager_structure {
 }
 
 pred wellformed_file_owner {
-    // every data file has ONE owner
     all d: Data {
-        one e: Employee | d.owner = e
-        d.owner in d.read_access and d.owner in d.write_access
-        // write access encompasses read access
-        d.read_access in d.write_access
+        one e: Employee | {
+            d in e.data
+            e in d.owner
+        }
+    }
+
+    all d : Data {
+        d.owner in d.read_access
+        d.owner in d.write_access
     }
 }
 
 pred wellformed_file_access {
-    all e: Employee {
+    all e: Employee, d: Data {
         // every employee has access to their own data
-        all d: Data | d in e.data implies e in d.read_access or e in d.write_access
+        d in e.data implies e in d.read_access and e in d.write_access
     }
 }
 

@@ -14,7 +14,7 @@ abstract sig Employee {
 sig Manager extends Employee {}
 one sig CEO extends Manager {}
 sig Engineer extends Employee {}
-sig Administrator extends Employee {}
+sig HR extends Employee {}
 
 ------- TEAM / DEPARTMENT ------
 sig Team {
@@ -23,7 +23,7 @@ sig Team {
     team_above: lone Team
 }
 
-sig HRTeam extends Team {}
+one sig HRTeam extends Team {}
 
 ------- DATA --------
 abstract sig Data {
@@ -35,10 +35,6 @@ abstract sig Data {
 sig EmployeeData extends Data {}
 sig CompanyData extends Data {}
 sig PrivateData extends Data {}
-
-// sig WorkDocument extends CompanyData {}
-// sig W2 extends EmployeeData {}
-// sig SSN extends PrivateData {}
 
 --------------------------- PREDICATES -------------------------
 
@@ -67,6 +63,12 @@ pred wellformed_teams {
         one t: Team | t = e.team
     }
 
+    // HR employees are in the HR team only
+    all e: Employee | {
+        e in HR implies e.team = HRTeam
+        e.team = HRTeam implies (e in HR or e in Manager)
+    }
+
     // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
     #{t: Team | no t.team_above} = 1
 
@@ -83,13 +85,13 @@ pred wellformed_teams {
     // an engineer's manager is the manager of their team
     // a manager's manager is the manager of the team_above
     all e: Employee {
-        (e in Engineer or e in Administrator) implies e.manager = e.team.team_manager
+        (e in Engineer or e in HR) implies e.manager = e.team.team_manager
         e in Manager implies e.manager = e.team.team_above.team_manager
     }
 }
 
 pred wellformed_files {
-    // every data file has an owner (could be more than one)
+    // every data file has one owner
     all d: Data {
         one e: Employee | {
             d in e.data
@@ -100,8 +102,6 @@ pred wellformed_files {
     all d : Data {
         d.owner in d.read_access
         d.owner in d.write_access
-        // #d.write_access = 1
-        // #d.read_access = 1
     }
     
     all e: Employee, d: Data {
@@ -247,6 +247,7 @@ pred accessControlStarting {
         // e can read d if they own it, OR if they are a manager (direct or indirect) of someone who owns it
         e in d.read_access iff (e in d.owner or e in d.owner.^manager)
         e in d.owner.^manager implies e in d.read_access
+        // only direct manager has write access
         e = d.owner.manager implies e in d.write_access
     }
 
@@ -260,16 +261,15 @@ pred accessControlTransition {
 
 }
 
-pred assignAllToTeamsButNotAllHR {
-    all e: Employee | some t: Team | e.team = t
-    some e: Employee | e.team = HRTeam
-    some e: Employee | e.team != HRTeam
-}
+// pred assignAllToTeamsButNotAllHR {
+//     all e: Employee | some t: Team | e.team = t
+//     some e: Employee | e.team = HRTeam
+//     some e: Employee | e.team != HRTeam
+// }
 
 pred initState{
     wellformed_employees
     wellformed_teams
-    assignAllToTeamsButNotAllHR
     wellformed_files
 }
 

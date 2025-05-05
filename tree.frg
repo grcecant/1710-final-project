@@ -251,21 +251,16 @@ pred accessControlStarting {
         e = d.owner.manager implies e in d.write_access
     }
 
-    // all employees own at least one data
+    // no person should own more than 2 files for readability purposes
     all e: Employee | {
-        some d: Data | d in e.data
+        let owned = {d: Data | e in d.owner} |
+        #owned <= 2
     }
 }
 
 pred accessControlTransition {
 
 }
-
-// pred assignAllToTeamsButNotAllHR {
-//     all e: Employee | some t: Team | e.team = t
-//     some e: Employee | e.team = HRTeam
-//     some e: Employee | e.team != HRTeam
-// }
 
 pred initState{
     wellformed_employees
@@ -282,5 +277,5 @@ pred traces{
 
 run {
     traces
-// } for exactly 6 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
-} for exactly 6 Employee, exactly 3 Team
+} for exactly 7 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
+// } for exactly 6 Employee, exactly 3 Team

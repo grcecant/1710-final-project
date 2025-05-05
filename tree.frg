@@ -170,6 +170,7 @@ pred grantTeamWriteAccess[data: Data, team: Team]{
 
 ------------------ TRANSITIONS -----------------
 
+// NOTE: probably need to change this for ownership changing preds
 pred validStateChange {
     all e : Employee {
         all d : Data {
@@ -279,3 +280,6 @@ run {
     traces
 } for exactly 7 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
 // } for exactly 6 Employee, exactly 3 Team
+
+
+// add more run functions for original transition traces 

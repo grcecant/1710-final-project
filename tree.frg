@@ -23,6 +23,8 @@ sig Team {
     team_above: lone Team
 }
 
+sig HRTeam extends Team{}
+
 ------- DATA --------
 abstract sig Data {
     var owner: set Employee,
@@ -127,6 +129,7 @@ pred validStateChange {
 pred initState{
     wellformed_employees
     wellformed_teams
+    assignAllToTeamsButNotAllHR
     wellformed_files
 }
 
@@ -190,7 +193,7 @@ pred changePermissionIndividualTransition {
     some d : Data, e : Employee | {
         grantReadAccess[d,e] or
         grantWriteAccess[d,e] or
-        removeReadAccess[d,e] or
+        removeReadAccess[d,e] or 
         removeWriteAccess[d,e]
     } 
 
@@ -251,6 +254,12 @@ pred traces{
     //         }  
     //     }
     // }
+}
+
+pred assignAllToTeamsButNotAllHR {
+    all e: Employee | some t: Team | e.team = t
+    some e: Employee | e.team = HRTeam
+    some e: Employee | e.team != HRTeam
 }
 
 run {

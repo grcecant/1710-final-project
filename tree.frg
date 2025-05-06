@@ -69,24 +69,44 @@ pred wellformed_teams {
         e.team = HRTeam implies (e in HR or e in Manager)
     }
 
-    // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
-    #{t: Team | no t.team_above} = 1
+
+    // ***
+    all hrt : HRTeam {
+        no hrt.team_above
+
+        all t: Team | {
+            hrt not in t.^team_above
+        }
+    }
 
     // every team has a team above it (except the first team), which is linear. CEO is the top of the team hierarchy
     all t: Team {
         t = CEO.team implies no t.team_above
-        no t.team_above implies {
-            all t2: Team - t | t in t2.^team_above
+
+        // The top team is reached by all other teams 
+        t = CEO.team implies {
+            all t2: Team - t |{
+                t2 != HRTeam implies {
+                    t in t2.^team_above
+                }
+            }
         }
-        no t2: Team - t | t.team_above = t2.team_above
+
+        // no t2: Team - t | t.team_above = t2.team_above
     }
+
+    // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
+    #{t: Team | no t.team_above} = 2
+
     CEO.team.members = {CEO}
 
     // an engineer's manager is the manager of their team
     // a manager's manager is the manager of the team_above
     all e: Employee {
         (e in Engineer or e in HR) implies e.manager = e.team.team_manager
-        e in Manager implies e.manager = e.team.team_above.team_manager
+        (e in Manager and e not in HRTeam.members) implies e.manager = e.team.team_above.team_manager
+        //***
+        (e in Manager and e in HRTeam.members) implies e.manager = CEO
     }
 }
 
@@ -262,8 +282,6 @@ pred accessControlStarting {
 /*
 Only one persons permissions or teams permissions should change at each state
 hr team: employee data privileges should never change
-
-
 */
 pred accessControlTransition {
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 

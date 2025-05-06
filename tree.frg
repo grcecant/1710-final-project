@@ -27,6 +27,7 @@ one sig HRTeam extends Team {}
 
 ------- DATA --------
 abstract sig Data {
+    // NOTE: change this to one person 
     var owner: set Employee,
     var read_access: set Employee,
     var write_access: set Employee
@@ -45,11 +46,13 @@ pred wellformed_employees {
 }
 
 pred wellformed_teams {
-    // every team has one manager, and every manager is only the manager of one team 
+    // every team has one manager 
     all t: Team {
         t != CEO.team implies {one m: Manager | m in t.members and m = t.team_manager}
         t = CEO.team implies {one m: Manager | m in t.members and m = CEO}
     }
+
+    // every manager is only the manager of one team 
     all m: Manager {
         one t: Team | m = t.team_manager and m in t.members
     }
@@ -70,10 +73,13 @@ pred wellformed_teams {
     }
 
 
-    // ***
+    // Making it so that the hr team is points to the ceo team as thier team above
+    // but is not included in the rest of the team hiearchy chain
     all hrt : HRTeam {
-        no hrt.team_above
+        hrt.team_above = CEO.team
 
+        // This would be for if the HRTeam had no team above it ***
+        // no hrt.team_above 
         all t: Team | {
             hrt not in t.^team_above
         }
@@ -92,22 +98,34 @@ pred wellformed_teams {
             }
         }
 
+
+
+        // This makes it unsat with this imp ***
         // no t2: Team - t | t.team_above = t2.team_above
+
+        // All teams have some team above them
+        all t2: Team - CEO.team | some t2.team_above
     }
 
     // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
-    #{t: Team | no t.team_above} = 2
+    #{t: Team | no t.team_above} = 1
+
+    // This would be for if the HRTeam had no team above it ***
+    // #{t: Team | no t.team_above} = 2
 
     CEO.team.members = {CEO}
     CEO.team not in HRTeam
 
-    // an engineer's manager is the manager of their team
+    // an employee's manager is the manager of their team
     // a manager's manager is the manager of the team_above
     all e: Employee {
         (e in Engineer or e in HR) implies e.manager = e.team.team_manager
-        (e in Manager and e not in HRTeam.members) implies e.manager = e.team.team_above.team_manager
-        //***
-        (e in Manager and e in HRTeam.members) implies e.manager = CEO
+        (e in Manager) implies e.manager = e.team.team_above.team_manager
+
+
+        // This would be for if the HRTeam had no team above it ***
+        // (e in Manager and e not in HRTeam.members) implies e.manager = e.team.team_above.team_manager
+        // (e in Manager and e in HRTeam.members) implies e.manager = CEO
     }
 }
 
@@ -139,21 +157,6 @@ pred wellformed_files {
 }
 
 ---------- DEFINING ACCESS CONTROL ----------
-
-/*
-The owner can give write or read access, or transfer ownership
-Multiple owners 
-    - Same access and level 
-    - Both can approve ownership and share
-    - Cannot remove each other/ change permissions for each other 
-At each state, a document should have an owner
-Someone can remove themselves
-    - There must be an owner of the data at all times 
-Can give access to teams as a whole 
-Include different states where the access to a document happens (lab 4 for ref)
-    - In the initial state, only the owner has access to the document 
-modeling data that should be able to be accessed by anyone of a certain level
-*/
 pred grantReadAccess[data: Data, grantAccess: Employee] {
     // // owner is not the one being granted access
     grantAccess != data.owner
@@ -198,7 +201,7 @@ pred grantTeamWriteAccess[data: Data, team: Team]{
 
 ------------------ TRANSITIONS -----------------
 
-// NOTE: probably need to change this for ownership changing preds
+// NOTE: probably need to change this for ownership changing preds as the owner won't be the same in both states
 pred validStateChange {
     all e : Employee {
         all d : Data {
@@ -268,7 +271,7 @@ pred accessControlStarting {
     //     e.team in HRTeam implies e in d.read_access
     // }
 
-    //***
+    //Is this saying the same thing as above***
     all d: EmployeeData, e: HRTeam.members | {
         e in d.read_access
     }
@@ -350,4 +353,4 @@ run {
 // } for exactly 6 Employee, exactly 3 Team
 
 
-// add more run functions for original transition traces 
+// NOTE: add more run functions for original transition traces 

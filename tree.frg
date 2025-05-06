@@ -99,6 +99,7 @@ pred wellformed_teams {
     #{t: Team | no t.team_above} = 2
 
     CEO.team.members = {CEO}
+    CEO.team not in HRTeam
 
     // an engineer's manager is the manager of their team
     // a manager's manager is the manager of the team_above
@@ -126,7 +127,14 @@ pred wellformed_files {
     
     all e: Employee, d: Data {
         // every employee has access to their own data
-        d in e.data implies e in d.read_access and e in d.write_access
+        d in e.data implies e in d.read_access and e in d.write_access and e in d.owner
+    }
+
+    // All hr employees (including manager) are owners of no data ***
+    all hr: HRTeam.members|{
+        no d : Data |{
+            hr in d.owner
+        }
     }
 }
 
@@ -255,9 +263,14 @@ pred changePermissionTransition {
 
 pred accessControlStarting {
     // HRTeam members can read all EmployeeData
-    all d: EmployeeData, e: Employee | {
-        e in d.read_access iff e.team in HRTeam
-        e.team in HRTeam implies e in d.read_access
+    // all d: EmployeeData, e: Employee | {
+    //     e in d.read_access iff e.team in HRTeam
+    //     e.team in HRTeam implies e in d.read_access
+    // }
+
+    //***
+    all d: EmployeeData, e: HRTeam.members | {
+        e in d.read_access
     }
     
     // only the owner can read or write PrivateData
@@ -272,7 +285,7 @@ pred accessControlStarting {
         e = d.owner.manager implies e in d.write_access
     }
 
-    // no person should own more than 2 files for readability purposes
+    // no person should own more than 2 files for readability purposes in the visualizer
     all e: Employee | {
         let owned = {d: Data | e in d.owner} |
         #owned <= 2

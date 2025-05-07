@@ -27,6 +27,7 @@ one sig HRTeam extends Team {}
 
 ------- DATA --------
 abstract sig Data {
+    // NOTE: change this to one person 
     var owner: set Employee,
     var read_access: set Employee,
     var write_access: set Employee
@@ -45,11 +46,13 @@ pred wellformed_employees {
 }
 
 pred wellformed_teams {
-    // every team has one manager, and every manager is only the manager of one team 
+    // every team has one manager 
     all t: Team {
         t != CEO.team implies {one m: Manager | m in t.members and m = t.team_manager}
         t = CEO.team implies {one m: Manager | m in t.members and m = CEO}
     }
+
+    // every manager is only the manager of one team 
     all m: Manager {
         one t: Team | m = t.team_manager and m in t.members
     }
@@ -69,24 +72,49 @@ pred wellformed_teams {
         e.team = HRTeam implies (e in HR or e in Manager)
     }
 
-    // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
-    #{t: Team | no t.team_above} = 1
+
+    // Making it so that the hr team is points to the ceo team as thier team above
+    // but is not included in the rest of the team hiearchy chain
+    all hrt : HRTeam {
+        hrt.team_above = CEO.team
+
+        all t: Team | {
+            hrt not in t.^team_above
+        }
+    }
 
     // every team has a team above it (except the first team), which is linear. CEO is the top of the team hierarchy
     all t: Team {
         t = CEO.team implies no t.team_above
-        no t.team_above implies {
-            all t2: Team - t | t in t2.^team_above
-        }
-        no t2: Team - t | t.team_above = t2.team_above
-    }
-    CEO.team.members = {CEO}
 
-    // an engineer's manager is the manager of their team
+        // The top team is reached by all other teams 
+        t = CEO.team implies {
+            all t2: Team - t |{
+                t2 != HRTeam implies {
+                    t in t2.^team_above
+                }
+            }
+        }
+
+        // This makes it unsat with this imp ***
+        // no t2: Team - t | t.team_above = t2.team_above
+
+        // All teams have some team above them
+        all t2: Team - CEO.team | some t2.team_above
+    }
+
+    // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
+    #{t: Team | no t.team_above} = 1
+
+
+    CEO.team.members = {CEO}
+    CEO.team not in HRTeam
+
+    // an employee's manager is the manager of their team
     // a manager's manager is the manager of the team_above
     all e: Employee {
         (e in Engineer or e in HR) implies e.manager = e.team.team_manager
-        e in Manager implies e.manager = e.team.team_above.team_manager
+        (e in Manager) implies e.manager = e.team.team_above.team_manager
     }
 }
 
@@ -106,26 +134,18 @@ pred wellformed_files {
     
     all e: Employee, d: Data {
         // every employee has access to their own data
-        d in e.data implies e in d.read_access and e in d.write_access
+        d in e.data implies e in d.read_access and e in d.write_access and e in d.owner
+    }
+
+    // All hr employees (including manager) are owners of no data 
+    all hr: HRTeam.members|{
+        no d : Data |{
+            hr in d.owner
+        }
     }
 }
 
 ---------- DEFINING ACCESS CONTROL ----------
-
-/*
-The owner can give write or read access, or transfer ownership
-Multiple owners 
-    - Same access and level 
-    - Both can approve ownership and share
-    - Cannot remove each other/ change permissions for each other 
-At each state, a document should have an owner
-Someone can remove themselves
-    - There must be an owner of the data at all times 
-Can give access to teams as a whole 
-Include different states where the access to a document happens (lab 4 for ref)
-    - In the initial state, only the owner has access to the document 
-modeling data that should be able to be accessed by anyone of a certain level
-*/
 pred grantReadAccess[data: Data, grantAccess: Employee] {
     // // owner is not the one being granted access
     grantAccess != data.owner
@@ -170,7 +190,7 @@ pred grantTeamWriteAccess[data: Data, team: Team]{
 
 ------------------ TRANSITIONS -----------------
 
-// NOTE: probably need to change this for ownership changing preds
+// NOTE: probably need to change this for ownership changing preds as the owner won't be the same in both states
 pred validStateChange {
     all e : Employee {
         all d : Data {
@@ -239,7 +259,7 @@ pred accessControlStarting {
         e in d.read_access iff e.team in HRTeam
         e.team in HRTeam implies e in d.read_access
     }
-    
+
     // only the owner can read or write PrivateData
     all d: PrivateData | d.read_access = d.owner and d.write_access = d.owner
     
@@ -252,7 +272,7 @@ pred accessControlStarting {
         e = d.owner.manager implies e in d.write_access
     }
 
-    // no person should own more than 2 files for readability purposes
+    // no person should own more than 2 files for readability purposes in the visualizer
     all e: Employee | {
         let owned = {d: Data | e in d.owner} |
         #owned <= 2
@@ -262,8 +282,6 @@ pred accessControlStarting {
 /*
 Only one persons permissions or teams permissions should change at each state
 hr team: employee data privileges should never change
-
-
 */
 pred accessControlTransition {
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 
@@ -319,4 +337,4 @@ run {
 // } for exactly 6 Employee, exactly 3 Team
 
 
-// add more run functions for original transition traces 
+// NOTE: add more run functions for original transition traces 

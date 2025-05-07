@@ -194,11 +194,20 @@ pred grantTeamWriteAccess[data: Data, team: Team]{
 pred validStateChange {
     all e : Employee {
         all d : Data {
-            e in d.owner implies {
-                d in e.data' 
-                e in d.write_access'
-                e in d.read_access'
-                e in d.owner'
+            d in CompanyData implies{
+                e in d.owner implies {
+                    d in e.data' 
+                    e in d.write_access'
+                    e in d.read_access'
+                    // e in d.owner'
+                }
+            } else{
+                e in d.owner implies {
+                    d in e.data' 
+                    e in d.write_access'
+                    e in d.read_access'
+                    e in d.owner'
+                }
             }
         }
     }
@@ -287,24 +296,30 @@ pred accessControlStarting {
 /*
 Only one persons permissions or teams permissions should change at each state
 hr team: employee data privileges should never change
+pass in a type of data, and if it is that type of data, then execute that specifically
 */
-pred accessControlTransition {
+pred accessControlTransition[d: Data] {
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 
 
     // hr team access should not change between states
+    d in EmployeeData implies{
     all member : HRTeam.members{
         member.read_access' = member.read_access
         member.write_access' = member.write_access
+        }
     }
 
     // if a person no longer is the owner of thee document, initially they should not be able to both read and write
+    d in PrivateData implies{
     all d: PrivateData, e: Employee {
         e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
+        }
     }
 
     // in the case that the person in the next state is no longer the owner (company data), it means that 
     // that the propagation of managers also having access does not hold and should be changed
     // as we percolate up from manager to manager
+    d in CompanyData implies{
     all d : CompanyData {
     let formerOwner = d.owner, currentOwner = d.owner' |
     // between states the owners change for the data
@@ -319,6 +334,24 @@ pred accessControlTransition {
                     removeReadAccess[d, m]
                     removeWriteAccess[d, m]
                 }
+            }
+        }
+    }
+}
+
+pred transferCompanyOwner{
+    /* 
+    Transfer Company Data Rules:
+        - At some state we would want owner ship of the document to change
+        so that logic for companyData in accessControlTransition can execute
+    */
+    some d: CompanyData {
+        let newOwners = { e : Employee | e != d.owner} |
+        some e: newOwners | {
+            e != d.owner implies {
+                d.owner' != d.owner
+                d.owner' = e
+            }
         }
     }
 }
@@ -334,6 +367,7 @@ pred traces{
     accessControlStarting
     always {validStateChange}
     always {changePermissionTransition}
+    eventually {transferCompanyOwner}
 }
 
 run {

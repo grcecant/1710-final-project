@@ -306,17 +306,20 @@ pred accessControlTransition{
     some d: Data |{
         d in EmployeeData implies{
             all member : HRTeam.members{
-                member.read_access' = member.read_access
-                member.write_access' = member.write_access
+                all d : Data{
+                    member in d.read_access implies {
+                        member in d.read_access'
+                    }
+                }
             }
         }
 
-        // if a person no longer is the owner of thee document, initially they should not be able to both read and write
-        d in PrivateData implies{
-            all d: PrivateData, e: Employee {
-                e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
-            }
-        }
+        // // if a person no longer is the owner of thee document, initially they should not be able to both read and write
+        // d in PrivateData implies{
+        //     all d: PrivateData, e: Employee {
+        //         e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
+        //     }
+        // }
 
         // in the case that the person in the next state is no longer the owner (company data), it means that 
         // that the propagation of managers also having access does not hold and should be changed
@@ -339,6 +342,16 @@ pred accessControlTransition{
                             removeReadAccess[d, m]
                             removeWriteAccess[d, m]
                         }
+
+                    // Remove read and write access for all managers of the former owner
+                    all m: Employee |
+                        m in currentOwner.manager => {
+                            grantReadAccess[d,m] 
+                            grantWriteAccess[d,m]
+                        } and
+                        m in currentOwner.^manager => {
+                            grantReadAccess[d,m] 
+                        }
                 }
             }
         }
@@ -358,6 +371,8 @@ pred transferCompanyOwner{
                 d.owner' != d.owner
                 d.owner' = e
             }
+
+            
         }
     }
 }
@@ -372,8 +387,8 @@ pred traces{
     initState
     accessControlStarting
     always {validStateChange}
-    always {changePermissionTransition}
-    eventually {transferCompanyOwner}
+    always {accessControlTransition}
+    // eventually {transferCompanyOwner}
 }
 
 run {
@@ -382,4 +397,7 @@ run {
 // } for exactly 6 Employee, exactly 3 Team
 
 
+compnaydata: run {
+    traces
+} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
 // NOTE: add more run functions for original transition traces 

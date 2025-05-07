@@ -2,17 +2,6 @@
 
 #### By Grace Cantarella, Yabeke Zike, and Josh Okwaning
 
-<!-- You should write a one-page README.md file describing how you structured your model and what your model proved. You can assume that anyone reading it will be familiar with your project proposal, but comprehensive documentation is always welcome. Here are some examples of points you might cover:
-
-What tradeoffs did you make in choosing your representation? What else did you try that didn’t work as well?
-What assumptions did you make about scope? What are the limits of your model?
-Did your goals change at all from your proposal? Did you realize anything you planned was unrealistic, or that anything you thought was unrealistic was doable?
-How should we understand an instance of your model and what your visualization shows (whether custom or default)?
-
-Remember that we welcome collaboration! In that spirit, you should include a list of collaborators at the bottom of your README. If you did not collaborate on the Final Project, you must still indicate this at the bottom of the README. -->
-
-<!-- (how we structured model) -->
-
 ### Our Model
 
 Our model represents Role-Based Access Control (RBAC) of a company. RBAC is a system in which a user's role mediates their access to different permissions, in this case of different data. We aimed to create traces that, on a somewhat simplified level from a real company, showed how different types of data could transfer in ownership or read/write access over time. Through this, we were aiming to see whether we could expose some sort of vulnerability or possible exploit in a permissions-based structure such as this one.
@@ -39,10 +28,12 @@ Another tradeoff was our representation of the team structure as directly linear
 
 In terms of limitations, our model cannot represent companies that employ multiple managers per team or have equilevel teams. 
 
-In addition, there were a huge number of different permissions structures we could've chosen from, such as the Bell-LaPadula model (write-up, read-down). For CompanyData, we decided upon an employee's direct manager having write and read access and all reachable managers having read access for the following reasons: 
-1) 
-2) 
-3) 
+In addition, there was a large number of different permissions designs we could've chosen from in structuring our model, such as the Bell-LaPadula model (write-up, read-down). For CompanyData, we decided upon an employee's direct manager having write and read access and all reachable managers having read access for the following reasons: 
+1) Enables direct oversight from an employee's higherup, but not abuse of power in write access by even more senior employees (like the CEO).
+
+2) Lends greater control to the owner, who is able to share write access with whomever they desire.
+
+3) Data can never be left uneditable, as there is always one owner and one person with write access.
 
 <!-- (explain goals) -->
 
@@ -58,10 +49,10 @@ The three orientation constraints we introduced in the CND file were that 1) the
 
 We did run into some issues with Cope and Drag; as the model got more convoluted with more and more sigs, we would get errors from Cope and Drag saying that certain edges would need to be unsticked, or other errors regarding impossible layouts. In these cases, we had to focus on the Sterling visualization which was more difficult to parse out manually, so instead we relied on reading the table form of data whenever this happened.
 
-#### Testing
+### Testing
 
 We employed thorough property-based testing for each predicate in our main tree.frg file. Because we used Temporal Forge, we decided against using examples as we remembered we were encouraged against it during the temporal forge assignment, and instead focused on testing properties that should hold between time states rather than trying to find specific instances of what Forge might model (which, in a model like this, are exceedingly complicated and numerous). We also included test-expect blocks that tested mutual exclusion for different preds that should not fire at the same time, and testing certain sequences of predicates based off of intended performance. As mentioned above, much of our testing also took place through manual verification of Sterling and Cope and Drag trace visualizations. 
 
-#### Collaboration
+### Collaboration
 
 Collaborators: N/A

@@ -27,13 +27,22 @@ At the core of our model is the ability for a Data's access to change over time,
 
 <!-- (what the model proved) -->
 
-### Scope and Limitations
+<!-- INSERT IMAGES OF INSTANCES !!!!!!!!!!!!!!!!!!!!! -->
+
+### Scope, Tradeoffs, and Limitations
 
 The scope of our model is limited by the sheer number of variables required for even a run with fewer than 10 Employees. We may be able to model smaller companies, perhaps early-stage startups, but not larger companies which could have hundreds of thousands of employees, like Google or Amazon. Our model is also limited to a few different sigs which extend Employee; it would be extremely unrealistic for us to model every type of employee which exists in a real company.
 
 As mentioned earlier, we generalized Data into CompanyData, EmployeeData, and PrivateData. In our ideal world we would've abstracted further to create specific sigs like W2, SSN, GoogleDoc, JavaFile, ExpenseReport, PostItNote, etc. but this was not realistic based on Forge's limitations and the thousands of types of files that really exist in a company.
 
 Another tradeoff was our representation of the team structure as directly linear. It of course makes sense that, tracing up the chain, each team inherently reports to the CEO as the highest "power," but most companies do not employ a strictly linear hierarchy structure of every team. At least at the companies we have worked at, different engineering teams were not above or below one another, especially cross-functionally. Similarly to how we had to generalize for Data and Employee, we also had to generalize for Team here to create a model that was readable and traceable, that connected back to the CEO at the top of the chain.
+
+In terms of limitations, our model cannot represent companies that employ multiple managers per team or have equilevel teams. 
+
+In addition, there were a huge number of different permissions structures we could've chosen from, such as the Bell-LaPadula model (write-up, read-down). For CompanyData, we decided upon an employee's direct manager having write and read access and all reachable managers having read access for the following reasons: 
+1) 
+2) 
+3) 
 
 <!-- (explain goals) -->
 
@@ -51,7 +60,7 @@ We did run into some issues with Cope and Drag; as the model got more convoluted
 
 #### Testing
 
-We employed thorough property-based testing for each predicate in our main tree.frg file, and ensured these properties through assert statements in specific test suites. Because we used Temporal Forge, we decided against using examples as we remembered we were encouraged against it during the temporal forge assignment, and instead focused on testing properties that should hold between time states rather than trying to find specific instances of what Forge might model (which, in a model like this, are exceedingly complicated and numerous).
+We employed thorough property-based testing for each predicate in our main tree.frg file. Because we used Temporal Forge, we decided against using examples as we remembered we were encouraged against it during the temporal forge assignment, and instead focused on testing properties that should hold between time states rather than trying to find specific instances of what Forge might model (which, in a model like this, are exceedingly complicated and numerous). We also included test-expect blocks that tested mutual exclusion for different preds that should not fire at the same time, and testing certain sequences of predicates based off of intended performance. As mentioned above, much of our testing also took place through manual verification of Sterling and Cope and Drag trace visualizations. 
 
 #### Collaboration
 

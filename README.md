@@ -9,13 +9,18 @@ How should we understand an instance of your model and what your visualization s
 
 Remember that we welcome collaboration! In that spirit, you should include a list of collaborators at the bottom of your README. If you did not collaborate on the Final Project, you must still indicate this at the bottom of the README. -->
 
+<!-- (how we structured model) -->
+Our model represents Role-Based Access Control (RBAC) of a company. We aimed to create traces that, on a somewhat simplified level from a real company, showed how files could transfer in ownership or read/write access over time. Through this, we were aiming to see whether we could expose some sort of vulnerability or possible exploit in a permissions-based structure such as this. 
 
-(explain tradeoffs)
+<!-- (what the model proved) -->
 
+<!-- (explain tradeoffs) -->
+
+<!-- (scope and limits of model) -->
 The scope of our model is limited by the sheer number of variables required for even a run with fewer than 10 Employees. We may be able to model smaller companies, perhaps early-stage startups, but not larger companies which could have hundreds of thousands of employees, like Google or Amazon. Our model is also limited to a few different sigs which extend Employee; it would be extremely unrealistic for us to model every type of employee which exists in a real company. 
 
-(explain goals)
+<!-- (explain goals) -->
 
-(explain visualization)
+<!-- (explain visualization) -->
 
 Collaborators: N/A

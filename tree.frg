@@ -26,8 +26,7 @@ one sig HRTeam extends Team {}
 
 ------- DATA --------
 abstract sig Data {
-    // NOTE: change this to one person 
-    var owner: set Employee,
+    var owner: one Employee,
     var read_access: set Employee,
     var write_access: set Employee
 }
@@ -95,11 +94,13 @@ pred wellformed_teams {
             }
         }
 
-        // This makes it unsat with this imp ***
-        // no t2: Team - t | t.team_above = t2.team_above
-
         // All teams have some team above them
         all t2: Team - CEO.team | some t2.team_above
+    }
+
+    // team structure is linear hierarchical
+    all t: Team - HRTeam {
+        no t2: Team - HRTeam - t | t.team_above = t2.team_above
     }
 
     // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.

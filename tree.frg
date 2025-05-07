@@ -315,11 +315,17 @@ pred accessControlTransition{
         }
 
         // // if a person no longer is the owner of thee document, initially they should not be able to both read and write
-        // d in PrivateData implies{
-        //     all d: PrivateData, e: Employee {
-        //         e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
-        //     }
-        // }
+        d in PrivateData implies{
+            all d: PrivateData, e: Employee {
+                e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
+            }
+            some d : Data, e : Employee | {
+                grantReadAccess[d,e] or
+                grantWriteAccess[d,e] or
+                removeReadAccess[d,e] or 
+                removeWriteAccess[d,e]
+            }
+        }
 
         // in the case that the person in the next state is no longer the owner (company data), it means that 
         // that the propagation of managers also having access does not hold and should be changed
@@ -327,33 +333,33 @@ pred accessControlTransition{
         d in CompanyData implies{
             transferCompanyOwner
 
-            all d : CompanyData {
-                let formerOwner = d.owner, currentOwner = d.owner' |
+            // all d : CompanyData {
+            //     let formerOwner = d.owner, currentOwner = d.owner' |
 
-                // between states the owners change for the data
-                formerOwner != currentOwner => {
-                    // firstly, make sure that read and write access of the former employee is gone
-                    removeReadAccess[d, formerOwner]
-                    removeWriteAccess[d, formerOwner]
+            //     // between states the owners change for the data
+            //     formerOwner != currentOwner => {
+            //         // firstly, make sure that read and write access of the former employee is gone
+            //         removeReadAccess[d, formerOwner]
+            //         removeWriteAccess[d, formerOwner]
 
-                    // Remove read and write access for all managers of the former owner
-                    all m: Employee |
-                        m in formerOwner.^manager => {
-                            removeReadAccess[d, m]
-                            removeWriteAccess[d, m]
-                        }
+            //         // Remove read and write access for all managers of the former owner
+            //         all m: Employee |
+            //             m in formerOwner.^manager => {
+            //                 removeReadAccess[d, m]
+            //                 removeWriteAccess[d, m]
+            //             }
 
-                    // Remove read and write access for all managers of the former owner
-                    all m: Employee |
-                        m in currentOwner.manager => {
-                            grantReadAccess[d,m] 
-                            grantWriteAccess[d,m]
-                        } and
-                        m in currentOwner.^manager => {
-                            grantReadAccess[d,m] 
-                        }
-                }
-            }
+            //         // Remove read and write access for all managers of the former owner
+            //         all m: Employee |
+            //             m in currentOwner.manager => {
+            //                 grantReadAccess[d,m] 
+            //                 grantWriteAccess[d,m]
+            //             } and
+            //             m in currentOwner.^manager => {
+            //                 grantReadAccess[d,m] 
+            //             }
+            //     }
+            // }
         }
     }
 }
@@ -367,12 +373,43 @@ pred transferCompanyOwner{
     some d: CompanyData {
         let newOwners = { e : Employee | e != d.owner} |
         some e: newOwners | {
-            e != d.owner implies {
+                // firstly, make sure that read and write access of the former employee is gone
+                // removeReadAccess[d, d.owner]
+                // removeWriteAccess[d, d.owner]
+
+                d.owner not in d.read_access'
+                d.owner not in d.write_access'
+
+                // Remove read and write access for all managers of the former owner
+                all m: Employee |
+                    m in d.owner.^manager => {
+                        m not in d.read_access'
+                        m not in d.write_access'
+                        // removeReadAccess[d, m]
+                        // removeWriteAccess[d, m]
+                    }
                 d.owner' != d.owner
                 d.owner' = e
-            }
+                e in d.read_access'
+                e in d.write_access'
+                // Remove read and write access for all managers of the former owner
+                all m: Employee |
+                    m in e.manager => {
+                        m in d.read_access'
+                        m in d.write_access'
+                        // grantReadAccess[d,m] 
+                        // grantWriteAccess[d,m]
+                    } and
+                    m in e.manager.^manager => {
+                        e in d.read_access'
+                        // grantReadAccess[d,m]  
+                    }
+                    and
+                    (m not in e.manager and m not in e.manager.^manager) =>{
+                        m not in d.read_access'
+                        m not in d.write_access'
+                    }
 
-            
         }
     }
 }

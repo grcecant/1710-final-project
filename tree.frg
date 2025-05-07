@@ -78,8 +78,6 @@ pred wellformed_teams {
     all hrt : HRTeam {
         hrt.team_above = CEO.team
 
-        // This would be for if the HRTeam had no team above it ***
-        // no hrt.team_above 
         all t: Team | {
             hrt not in t.^team_above
         }
@@ -98,8 +96,6 @@ pred wellformed_teams {
             }
         }
 
-
-
         // This makes it unsat with this imp ***
         // no t2: Team - t | t.team_above = t2.team_above
 
@@ -110,8 +106,6 @@ pred wellformed_teams {
     // there should only be one team with no team above (head of the chain). This team should be reachable from all other teams.
     #{t: Team | no t.team_above} = 1
 
-    // This would be for if the HRTeam had no team above it ***
-    // #{t: Team | no t.team_above} = 2
 
     CEO.team.members = {CEO}
     CEO.team not in HRTeam
@@ -121,11 +115,6 @@ pred wellformed_teams {
     all e: Employee {
         (e in Engineer or e in HR) implies e.manager = e.team.team_manager
         (e in Manager) implies e.manager = e.team.team_above.team_manager
-
-
-        // This would be for if the HRTeam had no team above it ***
-        // (e in Manager and e not in HRTeam.members) implies e.manager = e.team.team_above.team_manager
-        // (e in Manager and e in HRTeam.members) implies e.manager = CEO
     }
 }
 
@@ -148,7 +137,7 @@ pred wellformed_files {
         d in e.data implies e in d.read_access and e in d.write_access and e in d.owner
     }
 
-    // All hr employees (including manager) are owners of no data ***
+    // All hr employees (including manager) are owners of no data 
     all hr: HRTeam.members|{
         no d : Data |{
             hr in d.owner
@@ -266,16 +255,11 @@ pred changePermissionTransition {
 
 pred accessControlStarting {
     // HRTeam members can read all EmployeeData
-    // all d: EmployeeData, e: Employee | {
-    //     e in d.read_access iff e.team in HRTeam
-    //     e.team in HRTeam implies e in d.read_access
-    // }
-
-    //Is this saying the same thing as above***
-    all d: EmployeeData, e: HRTeam.members | {
-        e in d.read_access
+    all d: EmployeeData, e: Employee | {
+        e in d.read_access iff e.team in HRTeam
+        e.team in HRTeam implies e in d.read_access
     }
-    
+
     // only the owner can read or write PrivateData
     all d: PrivateData | d.read_access = d.owner and d.write_access = d.owner
     

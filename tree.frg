@@ -3,7 +3,8 @@
 option max_tracelength 12
 option min_tracelength 12
 
---- EMPLOYEES ----
+----------------------------- SIGS ---------------------------
+----------- EMPLOYEES ----------
 abstract sig Employee {
     manager: lone Employee,
     team: lone Team,
@@ -24,7 +25,7 @@ sig Team {
 
 one sig HRTeam extends Team {}
 
-------- DATA --------
+------------ DATA --------------
 abstract sig Data {
     var owner: one Employee,
     var read_access: set Employee,
@@ -245,24 +246,6 @@ pred changePermissionTeamTransition {
             e.data' = e.data
         }
     }
-
-    // // at most one data has its permissions changed
-    // let changed = {d: Data | 
-    //     d.read_access' != d.read_access or
-    //     d.write_access' != d.write_access
-    // } |
-    // #changed <= 1
-
-    // // at most one team has its permissions changed -- people not on the team should not have any permissions changed
-    // let changedEmployees = { e: Employee |
-    //     some d: Data |
-    //         e in d.read_access' iff e not in d.read_access or
-    //         e in d.write_access' iff e not in d.write_access
-    //     } |
-    // {some t: Team |
-    //     changedEmployees = t.members and
-    //     {all t2: Team - t | no (changedEmployees & t2.members) }  
-    // }    
 }
 
 pred changePermissionTransition {
@@ -306,9 +289,9 @@ pass in a type of data, and if it is that type of data, then execute that specif
 pred accessControlTransition{
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 
 
-    // hr team access should not change between states
-
     some d: Data |{
+
+        // hr team access should not change between states
         d in EmployeeData implies{
             all member : HRTeam.members{
                 all d : Data {
@@ -319,7 +302,7 @@ pred accessControlTransition{
             }
         }
 
-        // // if a person no longer is the owner of thee document, initially they should not be able to both read and write
+        // if a person no longer is the owner of thee document, initially they should not be able to both read and write
         d in PrivateData implies{
             all d: PrivateData, e: Employee {
                 e not in d.owner' implies not (e in d.write_access')

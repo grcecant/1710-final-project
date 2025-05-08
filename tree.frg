@@ -220,45 +220,49 @@ pred validStateChange {
 }
 
 pred changePermissionIndividualTransition {
-    some d : Data, e : Employee | {
+    one d : Data, e : Employee | {
         grantReadAccess[d,e] or
         grantWriteAccess[d,e] or
         removeReadAccess[d,e] or 
         removeWriteAccess[d,e]
-    } 
 
-    // at most one employee has their permissions changed
-    let changed = {e: Employee |
-        some d: Data |
-            (e in d.read_access') and not (e in d.read_access) or
-            not (e in d.read_access') and (e in d.read_access)
-    } |
-    #changed <= 1
+        // FRAME: no other data or person had their permissions changed
+        all d2 : Data - d, e2: Employee - e | {
+            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+            e2.data' = e2.data
+        }
+    } 
 }
 
 pred changePermissionTeamTransition {
     some d : Data, t : Team | {
         grantTeamReadAccess[d,t] or
         grantTeamWriteAccess[d,t]
+
+        // FRAME: no other data or person had their permissions changed
+        all d2 : Data - d, e: Employee - t.members | {
+            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+            e.data' = e.data
+        }
     }
 
-    // at most one data has its permissions changed
-    let changed = {d: Data | 
-        d.read_access' != d.read_access or
-        d.write_access' != d.write_access
-    } |
-    #changed <= 1
+    // // at most one data has its permissions changed
+    // let changed = {d: Data | 
+    //     d.read_access' != d.read_access or
+    //     d.write_access' != d.write_access
+    // } |
+    // #changed <= 1
 
-    // at most one team has its permissions changed -- people not on the team should not have any permissions changed
-    let changedEmployees = { e: Employee |
-        some d: Data |
-            e in d.read_access' iff e not in d.read_access or
-            e in d.write_access' iff e not in d.write_access
-        } |
-    {some t: Team |
-        changedEmployees = t.members and
-        {all t2: Team - t | no (changedEmployees & t2.members) }  
-    }    
+    // // at most one team has its permissions changed -- people not on the team should not have any permissions changed
+    // let changedEmployees = { e: Employee |
+    //     some d: Data |
+    //         e in d.read_access' iff e not in d.read_access or
+    //         e in d.write_access' iff e not in d.write_access
+    //     } |
+    // {some t: Team |
+    //     changedEmployees = t.members and
+    //     {all t2: Team - t | no (changedEmployees & t2.members) }  
+    // }    
 }
 
 pred changePermissionTransition {
@@ -333,7 +337,7 @@ pred accessControlTransition{
             transferCompanyOwner
         }
 
-        // // // FRAME: no other data changes
+        // FRAME: no other data changes
         all d2 : Data - d | (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
     }
 }
@@ -348,9 +352,6 @@ pred transferCompanyOwner{
         let newOwners = { e : Employee | e != d.owner} |
         some e: newOwners | {
                 // firstly, make sure that read and write access of the former employee is gone
-                // removeReadAccess[d, d.owner]
-                // removeWriteAccess[d, d.owner]
-
                 d.owner not in d.read_access'
                 d.owner not in d.write_access'
 
@@ -359,24 +360,20 @@ pred transferCompanyOwner{
                     m in d.owner.^manager => {
                         m not in d.read_access'
                         m not in d.write_access'
-                        // removeReadAccess[d, m]
-                        // removeWriteAccess[d, m]
                     }
                 d.owner' != d.owner
                 d.owner' = e
                 e in d.read_access'
                 e in d.write_access'
+
                 // grant access for new employee
                 all m: Employee |
                     m in e.manager => {
                         m in d.read_access'
                         m in d.write_access'
-                        // grantReadAccess[d,m] 
-                        // grantWriteAccess[d,m]
                     } and
                     m in e.manager.^manager => {
                         e in d.read_access'
-                        // grantReadAccess[d,m]  
                     }
                     and
                     (m not in e.manager and m not in e.manager.^manager) =>{
@@ -397,8 +394,10 @@ pred initState {
 pred randomTraces {
     initState
     accessControlStarting
+    always {wellformed_data}
     always {validStateChange}
     always {changePermissionTransition}
+    eventually {changePermissionTeamTransition}
 }
 
 pred traces {
@@ -412,16 +411,19 @@ pred traces {
     // eventually {transferCompanyOwner}
 }
 
-tenEmployee: run {
+run_randomPermissionsTrace: run {
+    randomTraces
+} for exactly 7 Employee, exactly 3 Team, exactly 1 PrivateData, exactly 1 EmployeeData, exactly 2 CompanyData
+
+
+run_tenEmployee: run {
     traces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
 
 
-companyData: run {
+run_companyData: run {
     traces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
-
-// NOTE: add more run functions for original transition traces 
 
 ------------ SECURITY -------------
 
@@ -437,7 +439,7 @@ pred onlyAllowedMayRead {
 
 -- Question 1: Are any employees able to access (read-only) data that has not been explicitly shared with them in the starting state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead }
+security_onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead }
 
 
 pred privateDataNoFullAccessForNonOwner {
@@ -448,7 +450,7 @@ pred privateDataNoFullAccessForNonOwner {
 
 -- Question 2: Are any employees able to read and write private data that they do not own, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-privateDataNoFullAccess: check { traces implies always { privateDataNoFullAccessForNonOwner }}
+security_privateDataNoFullAccess: check { traces implies always { privateDataNoFullAccessForNonOwner }}
 
 
 pred privateDataOwnerKeepsSomeAccess {
@@ -457,7 +459,7 @@ pred privateDataOwnerKeepsSomeAccess {
 
 -- Question 3: Does the owner of private data always have some access to it, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-privateDataOwnerAccess: check { traces implies always { privateDataOwnerKeepsSomeAccess }}
+security_privateDataOwnerAccess: check { traces implies always { privateDataOwnerKeepsSomeAccess }}
 
 
 pred employeeDataHRRead {
@@ -466,7 +468,7 @@ pred employeeDataHRRead {
 
 -- Question 4: Are all HR employees able to read all employee data, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-hrReadImmutable: check { traces implies always { employeeDataHRRead } }
+security_hrReadImmutable: check { traces implies always { employeeDataHRRead } }
 
 pred singleFileAccessChange {
     let changed = { d : Data |
@@ -477,7 +479,7 @@ pred singleFileAccessChange {
 
 -- Question 5: Is it possible for more than one file to have its access changed in a single state transition?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-singleFileChangeCheck: check { traces implies always { singleFileAccessChange } }
+security_singleFileChangeCheck: check { traces implies always { singleFileAccessChange } }
 
 pred lingeringAccessAfterTransfer {
     some d : CompanyData |
@@ -492,7 +494,7 @@ pred lingeringAccessAfterTransfer {
         ))
 }
 
-transferLeakCheck: check {traces implies not (eventually { lingeringAccessAfterTransfer })}
+security_transferLeakCheck: check {traces implies not (eventually { lingeringAccessAfterTransfer })}
 
 pred allFileDataBreach {
     all d : Data | {
@@ -505,4 +507,4 @@ pred allFileDataBreach {
 
 -- Question 6: Is it possible for a data breach to occur where all employees to have read and write access to all data, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-allFileDataBreachCheck: check {traces implies not (eventually { allFileDataBreach })}
+security_allFileDataBreachCheck: check {traces implies not (eventually { allFileDataBreach })} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData

@@ -375,21 +375,6 @@ test expect {
         some disj d1, d2: CompanyData | eventually d1.owner != d1.owner' and eventually d2.owner != d2.owner'
     } is sat
 
-    // full_trace_pattern: {
-    //     traces
-    //     eventually {
-    //         some d: Data, t: Team | {
-    //             grantTeamReadAccess[d, t]
-    //             next_state
-    //             (some e: Employee | {
-    //                 grantWriteAccess[d, e]
-    //                 next_state next_state
-    //                 transferCompanyOwner
-    //             })
-    //         }
-    //     }
-    // } is sat
-
     hr_grant_indiv_revoke_safe: {
         traces
         eventually {

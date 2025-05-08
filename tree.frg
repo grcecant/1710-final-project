@@ -199,7 +199,6 @@ pred validStateChange {
                     d in e.data' 
                     e in d.write_access'
                     e in d.read_access'
-                    // e in d.owner'
                 }
             } else{
                 e in d.owner implies {
@@ -264,14 +263,9 @@ pred changePermissionTransition {
 
 pred accessControlStarting {
     // HRTeam members can read all EmployeeData
-    // all d: EmployeeData, e: Employee | {
-    //     e in d.read_access iff e.team in HRTeam
-    //     e.team in HRTeam implies e in d.read_access
-    // }
-
-    //Is this saying the same thing as above***
-    all d: EmployeeData, e: HRTeam.members | {
-        e in d.read_access
+    all d: EmployeeData, e: Employee | {
+        e in d.read_access iff e.team in HRTeam
+        e.team in HRTeam implies e in d.read_access
     }
     
     // only the owner can read or write PrivateData
@@ -319,7 +313,7 @@ pred accessControlTransition{
             all d: PrivateData, e: Employee {
                 e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
             }
-            some d : Data, e : Employee | {
+            some e : Employee | {
                 grantReadAccess[d,e] or
                 grantWriteAccess[d,e] or
                 removeReadAccess[d,e] or 
@@ -332,34 +326,6 @@ pred accessControlTransition{
         // as we percolate up from manager to manager
         d in CompanyData implies{
             transferCompanyOwner
-
-            // all d : CompanyData {
-            //     let formerOwner = d.owner, currentOwner = d.owner' |
-
-            //     // between states the owners change for the data
-            //     formerOwner != currentOwner => {
-            //         // firstly, make sure that read and write access of the former employee is gone
-            //         removeReadAccess[d, formerOwner]
-            //         removeWriteAccess[d, formerOwner]
-
-            //         // Remove read and write access for all managers of the former owner
-            //         all m: Employee |
-            //             m in formerOwner.^manager => {
-            //                 removeReadAccess[d, m]
-            //                 removeWriteAccess[d, m]
-            //             }
-
-            //         // Remove read and write access for all managers of the former owner
-            //         all m: Employee |
-            //             m in currentOwner.manager => {
-            //                 grantReadAccess[d,m] 
-            //                 grantWriteAccess[d,m]
-            //             } and
-            //             m in currentOwner.^manager => {
-            //                 grantReadAccess[d,m] 
-            //             }
-            //     }
-            // }
         }
     }
 }
@@ -414,13 +380,13 @@ pred transferCompanyOwner{
     }
 }
 
-pred initState{
+pred initState {
     wellformed_employees
     wellformed_teams
     wellformed_files
 }
 
-pred traces{
+pred traces {
     initState
     accessControlStarting
     always {validStateChange}
@@ -428,13 +394,28 @@ pred traces{
     // eventually {transferCompanyOwner}
 }
 
-run {
+sevenEmployee: run {
     traces
 } for exactly 7 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
-// } for exactly 6 Employee, exactly 3 Team
 
 
-compnaydata: run {
+companyData: run {
     traces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
+
 // NOTE: add more run functions for original transition traces 
+
+------------ SECURITY -------------
+
+pred onlyAllowedMayRead {
+  all d : Data, e : Employee |
+    let permitted =
+        (e in d.owner) or
+        (d in EmployeeData and e in HRTeam.members) or
+        (d in CompanyData and (e in d.owner.^manager)) or
+        (d in PrivateData and e in d.owner)
+    |
+    e in d.read_access implies permitted
+}
+
+onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead}

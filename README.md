@@ -24,7 +24,7 @@ As mentioned earlier, we generalized Data into CompanyData, EmployeeData, and Pr
 
 Another tradeoff was our representation of the team structure as directly linear. It of course makes sense that, tracing up the chain, each team inherently reports to the CEO as the highest "power," but most companies do not employ a strictly linear hierarchy structure of every team. At least at the companies we have worked at, different engineering teams were not above or below one another, especially cross-functionally. Similarly to how we had to generalize for Data and Employee, we also had to generalize for Team here to create a model that was readable and traceable, that connected back to the CEO at the top of the chain.
 
-In terms of limitations, our model cannot represent companies that employ multiple managers per team or have equilevel teams. 
+In terms of limitations, our model cannot represent companies that employ multiple managers per team or have equilevel teams. We do not support custom chains of delegation, which adds some aspect of rigidity; for example, if HR needed immediate emergency access to someone's private data, this is not necessarily possible.
 
 In addition, there was a large number of different permissions designs we could've chosen from in structuring our model, such as the Bell-LaPadula model (write-up, read-down). For CompanyData, we decided upon an employee's direct manager having write and read access and all reachable managers having read access for the following reasons: 
 1) Enables direct oversight from an employee's higherup, but not abuse of power in write access by even more senior employees (like the CEO).

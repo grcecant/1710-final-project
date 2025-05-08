@@ -325,6 +325,8 @@ pred accessControlTransition{
         d in CompanyData implies{
             transferCompanyOwner
         }
+
+       all d2 : Data - d | (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
     }
 }
 
@@ -384,6 +386,13 @@ pred initState {
     wellformed_files
 }
 
+pred randomTraces {
+    initState
+    accessControlStarting
+    always {validStateChange}
+    always {changePermissionTransition}
+}
+
 pred traces {
     initState
     accessControlStarting
@@ -416,4 +425,49 @@ pred onlyAllowedMayRead {
     e in d.read_access implies permitted
 }
 
-onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead}
+-- Question 1: Are any employees able to access (read-only) data that has not been explicitly shared with them in the starting state?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
+onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead }
+
+
+pred privateDataNoFullAccessForNonOwner {
+  all d : PrivateData, e : Employee |
+    e not in d.owner implies
+      not (e in d.read_access and e in d.write_access)
+}
+
+-- Question 2: Are any employees able to read and write private data that they do not own, in any state?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
+privateDataNoFullAccess: check { traces implies always { privateDataNoFullAccessForNonOwner }}
+
+
+pred privateDataOwnerKeepsSomeAccess {
+  all d : PrivateData |
+    d.owner in d.read_access + d.write_access
+}
+
+-- Question 3: Does the owner of private data always have some access to it, in any state?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
+privateDataOwnerAccess: check { traces implies always { privateDataOwnerKeepsSomeAccess }}
+
+
+pred employeeDataHRRead {
+  all hr : HRTeam.members, d : EmployeeData |
+    hr in d.read_access
+}
+
+-- Question 4: Are all HR employees able to read all employee data, in any state?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
+hrReadImmutable: check { traces implies always { employeeDataHRRead } }
+
+pred singleFileAccessChange {
+  let changed = { d : Data |
+        d.read_access' != d.read_access or
+        d.write_access' != d.write_access } |
+  #changed <= 1
+}
+
+-- Question 5: Is it possible for more than one file to have its access changed in a single state transition?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
+singleFileChangeCheck: check { traces implies always { singleFileAccessChange } }
+

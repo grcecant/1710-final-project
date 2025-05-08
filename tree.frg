@@ -306,7 +306,7 @@ pass in a type of data, and if it is that type of data, then execute that specif
 pred accessControlTransition {
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 
 
-    some d: Data |{
+    one d: Data |{
 
         // hr team access should not change between states
         d in EmployeeData implies{
@@ -336,11 +336,21 @@ pred accessControlTransition {
         // that the propagation of managers also having access does not hold and should be changed
         // as we percolate up from manager to manager
         d in CompanyData implies{
-            some e: Employee | transferCompanyOwner[d,e]
+            one e: Employee | transferCompanyOwner[d,e]
         }
 
         // FRAME: no other data changes
-        all d2 : Data - d | d2.read_access' = d2.read_access and d2.write_access' = d2.write_access
+        // all d2 : Data - d | d2.read_access' = d2.read_access and d2.write_access' = d2.write_access
+        all d2 : Data - d | {
+            d2.read_access'  = d2.read_access
+            d2.write_access' = d2.write_access
+            d2.owner'        = d2.owner
+        }
+
+        // untouched employees: their data set stays the same
+        all e : Employee - (d.owner + d.owner') | {
+            e.data' = e.data
+        }
     }
 }
 
@@ -470,16 +480,14 @@ security_singleFileChangeCheck: check { accessControlTraces implies always { sin
 pred lingeringAccessAfterTransfer {
     some d : CompanyData |
         d.owner' != d.owner and
-        (let oldOwner = d.owner | 
-            let oldChain = oldOwner.^manager |
-        (
-            oldOwner in d.read_access' or
-            oldOwner in d.write_access' or
-            some (oldChain & d.read_access') or
-            some (oldChain & d.write_access')
-        ))
+        (let oldChain = d.owner + d.owner.^manager,
+            newChain = d.owner' + d.owner'.^manager
+        | let leaked  = (oldChain - newChain) | 
+        some ( leaked & (d.read_access' + d.write_access') ))
 }
 
+-- Question 6: Can an employee retain access to a file after it has been transferred to another employee, in any state?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
 security_transferLeakCheck: check {accessControlTraces implies not (eventually { lingeringAccessAfterTransfer })}
 
 pred allFileDataBreach {
@@ -491,6 +499,6 @@ pred allFileDataBreach {
     }
 }
 
--- Question 6: Is it possible for a data breach to occur where all employees to have read and write access to all data, in any state?
+-- Question 7: Is it possible for a data breach to occur where all employees to have read and write access to all data, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
 security_allFileDataBreachCheck: check {accessControlTraces implies not (eventually { allFileDataBreach })} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData

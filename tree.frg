@@ -398,6 +398,11 @@ pred accessControlTraces {
     always {accessControlTransition}
     HRTeamSize
     some d: CompanyData, e: Employee | eventually transferCompanyOwner[d, e]
+    some d : PrivateData | eventually {
+        some e : Employee - d.owner |
+            grantReadAccess[d, e] or removeReadAccess[d, e]
+    }
+    some d : EmployeeData | eventually changePermissionGivenTransition[d]
 }
 
 pred HRTeamSize {
@@ -416,10 +421,6 @@ run_tenEmployee: run {
 run_sevenEmployee: run {
     accessControlTraces
 } for exactly 7 Employee, exactly 3 Team, exactly 1 PrivateData, exactly 1 EmployeeData, exactly 2 CompanyData
-
-run_companyData: run {
-    accessControlTraces
-} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
 
 ------------ SECURITY -------------
 

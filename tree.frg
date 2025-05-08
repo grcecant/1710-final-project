@@ -311,13 +311,11 @@ pred accessControlTransition{
         // // if a person no longer is the owner of thee document, initially they should not be able to both read and write
         d in PrivateData implies{
             all d: PrivateData, e: Employee {
-                e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
+                e not in d.owner' implies not (e in d.write_access')
             }
             some e : Employee | {
                 grantReadAccess[d,e] or
-                grantWriteAccess[d,e] or
                 removeReadAccess[d,e] or 
-                removeWriteAccess[d,e]
             }
         }
 

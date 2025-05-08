@@ -480,18 +480,14 @@ security_singleFileChangeCheck: check { accessControlTraces implies always { sin
 pred lingeringAccessAfterTransfer {
     some d : CompanyData |
         d.owner' != d.owner and
-        (let oldOwner = d.owner | 
-            let oldChain = oldOwner.^manager |
-        (
-            oldOwner in d.read_access' or
-            oldOwner in d.write_access' or
-            some (oldChain & d.read_access') or
-            some (oldChain & d.write_access')
-        ))
+        (let oldChain = d.owner + d.owner.^manager,
+            newChain = d.owner' + d.owner'.^manager
+        | let leaked  = (oldChain - newChain) | 
+        some ( leaked & (d.read_access' + d.write_access') ))
 }
 
 -- Question 6: Can an employee retain access to a file after it has been transferred to another employee, in any state?
--- 
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
 security_transferLeakCheck: check {accessControlTraces implies not (eventually { lingeringAccessAfterTransfer })}
 
 pred allFileDataBreach {

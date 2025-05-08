@@ -2,17 +2,6 @@
 
 #### By Grace Cantarella, Yabeke Zike, and Josh Okwaning
 
-<!-- You should write a one-page README.md file describing how you structured your model and what your model proved. You can assume that anyone reading it will be familiar with your project proposal, but comprehensive documentation is always welcome. Here are some examples of points you might cover:
-
-What tradeoffs did you make in choosing your representation? What else did you try that didn’t work as well?
-What assumptions did you make about scope? What are the limits of your model?
-Did your goals change at all from your proposal? Did you realize anything you planned was unrealistic, or that anything you thought was unrealistic was doable?
-How should we understand an instance of your model and what your visualization shows (whether custom or default)?
-
-Remember that we welcome collaboration! In that spirit, you should include a list of collaborators at the bottom of your README. If you did not collaborate on the Final Project, you must still indicate this at the bottom of the README. -->
-
-<!-- (how we structured model) -->
-
 ### Our Model
 
 Our model represents Role-Based Access Control (RBAC) of a company. RBAC is a system in which a user's role mediates their access to different permissions, in this case of different data. We aimed to create traces that, on a somewhat simplified level from a real company, showed how different types of data could transfer in ownership or read/write access over time. Through this, we were aiming to see whether we could expose some sort of vulnerability or possible exploit in a permissions-based structure such as this one.
@@ -27,8 +16,6 @@ At the core of our model is the ability for a Data's access to change over time,
 
 <!-- (what the model proved) -->
 
-<!-- INSERT IMAGES OF INSTANCES !!!!!!!!!!!!!!!!!!!!! -->
-
 ### Scope, Tradeoffs, and Limitations
 
 The scope of our model is limited by the sheer number of variables required for even a run with fewer than 10 Employees. We may be able to model smaller companies, perhaps early-stage startups, but not larger companies which could have hundreds of thousands of employees, like Google or Amazon. Our model is also limited to a few different sigs which extend Employee; it would be extremely unrealistic for us to model every type of employee which exists in a real company.
@@ -37,12 +24,14 @@ As mentioned earlier, we generalized Data into CompanyData, EmployeeData, and Pr
 
 Another tradeoff was our representation of the team structure as directly linear. It of course makes sense that, tracing up the chain, each team inherently reports to the CEO as the highest "power," but most companies do not employ a strictly linear hierarchy structure of every team. At least at the companies we have worked at, different engineering teams were not above or below one another, especially cross-functionally. Similarly to how we had to generalize for Data and Employee, we also had to generalize for Team here to create a model that was readable and traceable, that connected back to the CEO at the top of the chain.
 
-In terms of limitations, our model cannot represent companies that employ multiple managers per team or have equilevel teams. 
+In terms of limitations, our model cannot represent companies that employ multiple managers per team or have equilevel teams. We do not support custom chains of delegation, which adds some aspect of rigidity; for example, if HR needed immediate emergency access to someone's private data, this is not necessarily possible.
 
-In addition, there were a huge number of different permissions structures we could've chosen from, such as the Bell-LaPadula model (write-up, read-down). For CompanyData, we decided upon an employee's direct manager having write and read access and all reachable managers having read access for the following reasons: 
-1) 
-2) 
-3) 
+In addition, there was a large number of different permissions designs we could've chosen from in structuring our model, such as the Bell-LaPadula model (write-up, read-down). For CompanyData, we decided upon an employee's direct manager having write and read access and all reachable managers having read access for the following reasons: 
+1) Enables direct oversight from an employee's higherup, but not abuse of power in write access by even more senior employees (like the CEO).
+
+2) Lends greater control to the owner, who is able to share write access with whomever they desire.
+
+3) Data can never be left uneditable, as there is always one owner and one person with write access.
 
 <!-- (explain goals) -->
 
@@ -54,14 +43,21 @@ TBD
 
 We relied exclusively on Cope and Drag and Sterling's built-in visualization for this project, and did not create a custom visualization. We found that the natural structure of directed arrows representing fields pointing to specific nodes made a lot of sense for this access control structure. We created a custom Cope and Drag file (included in this repo) to help mimic the linear hierarchical structure of the company we intended to model.
 
+<!-- INSERT IMAGES OF INSTANCES !!!!!!!!!!!!!!!!!!!!! -->
+##### Sterling Visualization: 
+![Screenshot of Sterling Visualization](/images/sterling.png)
+
+#### CND Visualization:
+![Screenshot of CND Visualization](/images/cnd.png)
+
 The three orientation constraints we introduced in the CND file were that 1) the teams should be arranged in a linear structure, where the team at the end of the chain should be at the bottom, and from there all team_above teams are arranged towards the top, ending with the CEO's team which is always the highest team; 2) members should be arranged next to the team in which they work, from left to right; 3) an employees's data should be arranged directly below them to indicate ownership. In Cope and Drag, we also often entered additional constraints on grouping to separate on, for example, data ownership or employee type. These constraints are not included in the submitted CND file as they were moreso used in our manual testing and verification as opposed to properties we wanted to highlight.
 
-We did run into some issues with Cope and Drag; as the model got more convoluted with more and more sigs, we would get errors from Cope and Drag saying that certain edges would need to be unsticked, or other errors regarding impossible layouts. In these cases, we had to focus on the Sterling visualization which was more difficult to parse out manually, so instead we relied on reading the table form of data whenever this happened.
+We did run into some issues with Cope and Drag; as the model got more convoluted with more and more sigs, we would get errors from Cope and Drag saying that certain edges would need to be unsticked, or other errors regarding impossible layouts ("You may have to click and drag these nodes slightly nodes to un-stick layout."). In these cases, we had to focus on the Sterling visualization which was more difficult to parse out manually, so instead we relied on reading the table form of data whenever this happened. It was especially bothersome as it would sometimes occur only in some states of the trace, and not all (we spent most of our time testing with tracelength 12).
 
-#### Testing
+### Testing
 
 We employed thorough property-based testing for each predicate in our main tree.frg file. Because we used Temporal Forge, we decided against using examples as we remembered we were encouraged against it during the temporal forge assignment, and instead focused on testing properties that should hold between time states rather than trying to find specific instances of what Forge might model (which, in a model like this, are exceedingly complicated and numerous). We also included test-expect blocks that tested mutual exclusion for different preds that should not fire at the same time, and testing certain sequences of predicates based off of intended performance. As mentioned above, much of our testing also took place through manual verification of Sterling and Cope and Drag trace visualizations. 
 
-#### Collaboration
+### Collaboration
 
 Collaborators: N/A

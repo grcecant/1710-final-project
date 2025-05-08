@@ -315,7 +315,7 @@ pred accessControlTransition{
             }
             some e : Employee | {
                 grantReadAccess[d,e] or
-                removeReadAccess[d,e] or 
+                removeReadAccess[d,e]
             }
         }
 

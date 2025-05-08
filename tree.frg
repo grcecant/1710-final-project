@@ -319,7 +319,7 @@ pred accessControlTransition{
             all d: PrivateData, e: Employee {
                 e not in d.owner' implies not (e in d.read_access' and e in d.write_access')
             }
-            some d : Data, e : Employee | {
+            some e : Employee | {
                 grantReadAccess[d,e] or
                 grantWriteAccess[d,e] or
                 removeReadAccess[d,e] or 
@@ -338,7 +338,7 @@ pred accessControlTransition{
 
             //     // between states the owners change for the data
             //     formerOwner != currentOwner => {
-            //         // firstly, make sure that read and write access of the former employee is gone
+            //         // firstly, make sure that read and write access of the                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              former employee is gone
             //         removeReadAccess[d, formerOwner]
             //         removeWriteAccess[d, formerOwner]
 
@@ -392,7 +392,7 @@ pred transferCompanyOwner{
                 d.owner' = e
                 e in d.read_access'
                 e in d.write_access'
-                // Remove read and write access for all managers of the former owner
+                // grant access for new employee
                 all m: Employee |
                     m in e.manager => {
                         m in d.read_access'
@@ -434,7 +434,7 @@ run {
 // } for exactly 6 Employee, exactly 3 Team
 
 
-compnaydata: run {
+companydata: run {
     traces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
 // NOTE: add more run functions for original transition traces 

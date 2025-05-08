@@ -45,10 +45,10 @@ We relied exclusively on Cope and Drag and Sterling's built-in visualization for
 
 <!-- INSERT IMAGES OF INSTANCES !!!!!!!!!!!!!!!!!!!!! -->
 ##### Sterling Visualization: 
-![Screenshot of Sterling Visualization](/images/sterling.png)
+![Screenshot of Sterling Visualization](/sterling.png)
 
 #### CND Visualization:
-![Screenshot of CND Visualization](/images/cnd.png)
+![Screenshot of CND Visualization](/cnd.png)
 
 The three orientation constraints we introduced in the CND file were that 1) the teams should be arranged in a linear structure, where the team at the end of the chain should be at the bottom, and from there all team_above teams are arranged towards the top, ending with the CEO's team which is always the highest team; 2) members should be arranged next to the team in which they work, from left to right; 3) an employees's data should be arranged directly below them to indicate ownership. In Cope and Drag, we also often entered additional constraints on grouping to separate on, for example, data ownership or employee type. These constraints are not included in the submitted CND file as they were moreso used in our manual testing and verification as opposed to properties we wanted to highlight.
 

@@ -203,7 +203,7 @@ pred validStateChange {
     all e : Employee {
         all d : Data {
             d in CompanyData implies{
-                e in d.owner implies {
+                e in d.owner' implies {
                     d in e.data' 
                     e in d.write_access'
                     e in d.read_access'
@@ -222,6 +222,21 @@ pred validStateChange {
 
 pred changePermissionIndividualTransition {
     one d : Data, e : Employee | {
+        grantReadAccess[d,e] or
+        grantWriteAccess[d,e] or
+        removeReadAccess[d,e] or 
+        removeWriteAccess[d,e]
+
+        // FRAME: no other data or person had their permissions changed
+        all d2 : Data - d, e2: Employee - e | {
+            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+            e2.data' = e2.data
+        }
+    } 
+}
+
+pred changePermissionGivenTransition[d: Data] {
+    one e : Employee | {
         grantReadAccess[d,e] or
         grantWriteAccess[d,e] or
         removeReadAccess[d,e] or 
@@ -260,6 +275,7 @@ pred accessControlStarting {
     all d: EmployeeData, e: Employee | {
         e in d.read_access iff (e.team in HRTeam or e in d.owner)
         e.team in HRTeam implies e in d.read_access
+        e in d.write_access iff (e in d.owner)
     }
     
     // only the owner can read or write PrivateData
@@ -272,12 +288,13 @@ pred accessControlStarting {
         e in d.owner.^manager implies e in d.read_access
         // only direct manager has write access
         e = d.owner.manager implies e in d.write_access
+        e in d.write_access iff (e in d.owner or e = d.owner.manager)
     }
 
     // no person should own more than 2 files for readability purposes in the visualizer
     all e: Employee | {
         let owned = {d: Data | e in d.owner} |
-        #owned <= 2
+        (#owned <= 2 and #owned >=0)
     }
 }
 
@@ -286,7 +303,7 @@ Only one persons permissions or teams permissions should change at each state
 hr team: employee data privileges should never change
 pass in a type of data, and if it is that type of data, then execute that specifically
 */
-pred accessControlTransition{
+pred accessControlTransition {
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 
 
     some d: Data |{
@@ -300,6 +317,8 @@ pred accessControlTransition{
                     }
                 }
             }
+
+            changePermissionGivenTransition[d]
         }
 
         // if a person no longer is the owner of thee document, initially they should not be able to both read and write
@@ -317,54 +336,33 @@ pred accessControlTransition{
         // that the propagation of managers also having access does not hold and should be changed
         // as we percolate up from manager to manager
         d in CompanyData implies{
-            transferCompanyOwner
+            some e: Employee | transferCompanyOwner[d,e]
+            // transferCompanyOwner[d]
         }
 
         // FRAME: no other data changes
-        all d2 : Data - d | (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+        all d2 : Data - d | d2.read_access' = d2.read_access and d2.write_access' = d2.write_access
     }
 }
 
-pred transferCompanyOwner{
+pred transferCompanyOwner [d: Data, newOwner: Employee] {
     /* 
     Transfer Company Data Rules:
         - At some state we would want owner ship of the document to change
         so that logic for companyData in accessControlTransition can execute
     */
-    some d: CompanyData {
-        let newOwners = { e : Employee | e != d.owner} |
-        some e: newOwners | {
-                // firstly, make sure that read and write access of the former employee is gone
-                d.owner not in d.read_access'
-                d.owner not in d.write_access'
+    newOwner != d.owner
 
-                // Remove read and write access for all managers of the former owner
-                all m: Employee |
-                    m in d.owner.^manager => {
-                        m not in d.read_access'
-                        m not in d.write_access'
-                    }
-                d.owner' != d.owner
-                d.owner' = e
-                e in d.read_access'
-                e in d.write_access'
+    let oldChain   = d.owner  + d.owner.^manager,
+        newChain   = newOwner + newOwner.^manager,
+        newWriters = newOwner + newOwner.manager | 
+    {
+        d.owner'        = newOwner
+        d.read_access'  = (d.read_access  - oldChain) + newChain
+        d.write_access' = (d.write_access - oldChain) + newWriters
 
-                // grant access for new employee
-                all m: Employee |
-                    m in e.manager => {
-                        m in d.read_access'
-                        m in d.write_access'
-                    } and
-                    m in e.manager.^manager => {
-                        e in d.read_access'
-                    }
-                    and
-                    (m not in e.manager and m not in e.manager.^manager) =>{
-                        m not in d.read_access'
-                        m not in d.write_access'
-                    }
-
-        }
+        newOwner in d.read_access' and newOwner in d.write_access'
+        all m: Employee | m in d.write_access' implies m in d.read_access'
     }
 }
 
@@ -377,7 +375,7 @@ pred initState {
 pred randomTraces {
     initState
     accessControlStarting
-    always {wellformed_data}
+    always {wellformed_data and wellformed_files}
     always {validStateChange}
     always {changePermissionTransition}
     eventually {changePermissionTeamTransition}
@@ -386,12 +384,15 @@ pred randomTraces {
 pred accessControlTraces {
     initState
     accessControlStarting
-    always {wellformed_data}
+    always {wellformed_data and wellformed_files}
     always {validStateChange}
     always {accessControlTransition}
-    // DO WE WANT THIS BELOW??
-    // always {changePermissionTransition}
-    // eventually {transferCompanyOwner}
+    HRTeamSize
+    some d: CompanyData, e: Employee | eventually transferCompanyOwner[d, e]
+}
+
+pred HRTeamSize {
+    #HRTeam.members >= 2 and #HRTeam.members <= 4
 }
 
 run_randomPermissionsTrace: run {
@@ -403,6 +404,9 @@ run_tenEmployee: run {
     accessControlTraces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
 
+run_sevenEmployee: run {
+    accessControlTraces
+} for exactly 7 Employee, exactly 3 Team, exactly 1 PrivateData, exactly 1 EmployeeData, exactly 2 CompanyData
 
 run_companyData: run {
     accessControlTraces

@@ -337,7 +337,6 @@ pred accessControlTransition {
         // as we percolate up from manager to manager
         d in CompanyData implies{
             some e: Employee | transferCompanyOwner[d,e]
-            // transferCompanyOwner[d]
         }
 
         // FRAME: no other data changes

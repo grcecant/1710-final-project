@@ -383,7 +383,7 @@ pred randomTraces {
     eventually {changePermissionTeamTransition}
 }
 
-pred traces {
+pred accessControlTraces {
     initState
     accessControlStarting
     always {wellformed_data}
@@ -400,12 +400,12 @@ run_randomPermissionsTrace: run {
 
 
 run_tenEmployee: run {
-    traces
+    accessControlTraces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
 
 
 run_companyData: run {
-    traces
+    accessControlTraces
 } for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
 
 ------------ SECURITY -------------
@@ -422,7 +422,7 @@ pred onlyAllowedMayRead {
 
 -- Question 1: Are any employees able to access (read-only) data that has not been explicitly shared with them in the starting state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead }
+security_onlyAllowedReadAccess: check { accessControlTraces implies onlyAllowedMayRead }
 
 
 pred privateDataNoFullAccessForNonOwner {
@@ -433,7 +433,7 @@ pred privateDataNoFullAccessForNonOwner {
 
 -- Question 2: Are any employees able to read and write private data that they do not own, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_privateDataNoFullAccess: check { traces implies always { privateDataNoFullAccessForNonOwner }}
+security_privateDataNoFullAccess: check { accessControlTraces implies always { privateDataNoFullAccessForNonOwner }}
 
 
 pred privateDataOwnerKeepsSomeAccess {
@@ -442,7 +442,7 @@ pred privateDataOwnerKeepsSomeAccess {
 
 -- Question 3: Does the owner of private data always have some access to it, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_privateDataOwnerAccess: check { traces implies always { privateDataOwnerKeepsSomeAccess }}
+security_privateDataOwnerAccess: check { accessControlTraces implies always { privateDataOwnerKeepsSomeAccess }}
 
 
 pred employeeDataHRRead {
@@ -451,7 +451,7 @@ pred employeeDataHRRead {
 
 -- Question 4: Are all HR employees able to read all employee data, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_hrReadImmutable: check { traces implies always { employeeDataHRRead } }
+security_hrReadImmutable: check { accessControlTraces implies always { employeeDataHRRead } }
 
 pred singleFileAccessChange {
     let changed = { d : Data |
@@ -462,7 +462,7 @@ pred singleFileAccessChange {
 
 -- Question 5: Is it possible for more than one file to have its access changed in a single state transition?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_singleFileChangeCheck: check { traces implies always { singleFileAccessChange } }
+security_singleFileChangeCheck: check { accessControlTraces implies always { singleFileAccessChange } }
 
 pred lingeringAccessAfterTransfer {
     some d : CompanyData |
@@ -477,7 +477,7 @@ pred lingeringAccessAfterTransfer {
         ))
 }
 
-security_transferLeakCheck: check {traces implies not (eventually { lingeringAccessAfterTransfer })}
+security_transferLeakCheck: check {accessControlTraces implies not (eventually { lingeringAccessAfterTransfer })}
 
 pred allFileDataBreach {
     all d : Data | {
@@ -490,4 +490,4 @@ pred allFileDataBreach {
 
 -- Question 6: Is it possible for a data breach to occur where all employees to have read and write access to all data, in any state?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_allFileDataBreachCheck: check {traces implies not (eventually { allFileDataBreach })} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
+security_allFileDataBreachCheck: check {accessControlTraces implies not (eventually { allFileDataBreach })} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData

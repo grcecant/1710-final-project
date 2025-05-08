@@ -495,20 +495,3 @@ companyData: run {
 engineer: run {
     traces
 } for exactly 1 Engineer
-
-// NOTE: add more run functions for original transition traces 
-
------------- SECURITY -------------
-
-pred onlyAllowedMayRead {
-  all d : Data, e : Employee |
-    let permitted =
-        (e in d.owner) or
-        (d in EmployeeData and e in HRTeam.members) or
-        (d in CompanyData and (e in d.owner.^manager)) or
-        (d in PrivateData and e in d.owner)
-    |
-    e in d.read_access implies permitted
-}
-
-onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead}

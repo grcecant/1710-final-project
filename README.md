@@ -16,8 +16,6 @@ At the core of our model is the ability for a Data's access to change over time,
 
 <!-- (what the model proved) -->
 
-<!-- INSERT IMAGES OF INSTANCES !!!!!!!!!!!!!!!!!!!!! -->
-
 ### Scope, Tradeoffs, and Limitations
 
 The scope of our model is limited by the sheer number of variables required for even a run with fewer than 10 Employees. We may be able to model smaller companies, perhaps early-stage startups, but not larger companies which could have hundreds of thousands of employees, like Google or Amazon. Our model is also limited to a few different sigs which extend Employee; it would be extremely unrealistic for us to model every type of employee which exists in a real company.
@@ -45,9 +43,16 @@ TBD
 
 We relied exclusively on Cope and Drag and Sterling's built-in visualization for this project, and did not create a custom visualization. We found that the natural structure of directed arrows representing fields pointing to specific nodes made a lot of sense for this access control structure. We created a custom Cope and Drag file (included in this repo) to help mimic the linear hierarchical structure of the company we intended to model.
 
+<!-- INSERT IMAGES OF INSTANCES !!!!!!!!!!!!!!!!!!!!! -->
+##### Sterling Visualization: 
+![Screenshot of Sterling Visualization](/images/sterling.png)
+
+#### CND Visualization:
+![Screenshot of CND Visualization](/images/cnd.png)
+
 The three orientation constraints we introduced in the CND file were that 1) the teams should be arranged in a linear structure, where the team at the end of the chain should be at the bottom, and from there all team_above teams are arranged towards the top, ending with the CEO's team which is always the highest team; 2) members should be arranged next to the team in which they work, from left to right; 3) an employees's data should be arranged directly below them to indicate ownership. In Cope and Drag, we also often entered additional constraints on grouping to separate on, for example, data ownership or employee type. These constraints are not included in the submitted CND file as they were moreso used in our manual testing and verification as opposed to properties we wanted to highlight.
 
-We did run into some issues with Cope and Drag; as the model got more convoluted with more and more sigs, we would get errors from Cope and Drag saying that certain edges would need to be unsticked, or other errors regarding impossible layouts. In these cases, we had to focus on the Sterling visualization which was more difficult to parse out manually, so instead we relied on reading the table form of data whenever this happened.
+We did run into some issues with Cope and Drag; as the model got more convoluted with more and more sigs, we would get errors from Cope and Drag saying that certain edges would need to be unsticked, or other errors regarding impossible layouts ("You may have to click and drag these nodes slightly nodes to un-stick layout."). In these cases, we had to focus on the Sterling visualization which was more difficult to parse out manually, so instead we relied on reading the table form of data whenever this happened. It was especially bothersome as it would sometimes occur only in some states of the trace, and not all (we spent most of our time testing with tracelength 12).
 
 ### Testing
 

@@ -3,11 +3,10 @@
 option max_tracelength 12
 option min_tracelength 12
 
------------------------------ SIGS ---------------------------
------------ EMPLOYEES ----------
+--- EMPLOYEES ----
 abstract sig Employee {
-    manager: lone Employee,
-    team: lone Team,
+    var manager: lone Employee,
+    var team: lone Team,
     var data: set Data
 }
 
@@ -18,14 +17,14 @@ sig HR extends Employee {}
 
 ------- TEAM / DEPARTMENT ------
 sig Team {
-    members: set Employee,
-    team_manager: one Manager,
-    team_above: lone Team
+    var members: set Employee,
+    var team_manager: one Manager,
+    var team_above: lone Team
 }
 
 one sig HRTeam extends Team {}
 
------------- DATA --------------
+------- DATA --------
 abstract sig Data {
     var owner: one Employee,
     var read_access: set Employee,
@@ -42,13 +41,6 @@ sig PrivateData extends Data {}
 
 pred wellformed_employees {
     no CEO.manager
-}
-
-pred wellformed_data {
-    all d: Data, e: Employee | {
-        d in e.data implies e in d.owner
-        e in d.owner implies d in e.data
-    }
 }
 
 pred wellformed_teams {
@@ -203,7 +195,7 @@ pred validStateChange {
     all e : Employee {
         all d : Data {
             d in CompanyData implies{
-                e in d.owner' implies {
+                e in d.owner implies {
                     d in e.data' 
                     e in d.write_access'
                     e in d.read_access'
@@ -221,46 +213,45 @@ pred validStateChange {
 }
 
 pred changePermissionIndividualTransition {
-    one d : Data, e : Employee | {
+    some d : Data, e : Employee | {
         grantReadAccess[d,e] or
         grantWriteAccess[d,e] or
         removeReadAccess[d,e] or 
         removeWriteAccess[d,e]
-
-        // FRAME: no other data or person had their permissions changed
-        all d2 : Data - d, e2: Employee - e | {
-            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
-            e2.data' = e2.data
-        }
     } 
-}
 
-pred changePermissionGivenTransition[d: Data] {
-    one e : Employee | {
-        grantReadAccess[d,e] or
-        grantWriteAccess[d,e] or
-        removeReadAccess[d,e] or 
-        removeWriteAccess[d,e]
-
-        // FRAME: no other data or person had their permissions changed
-        all d2 : Data - d, e2: Employee - e | {
-            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
-            e2.data' = e2.data
-        }
-    } 
+    // at most one employee has their permissions changed
+    let changed = {e: Employee |
+        some d: Data |
+            (e in d.read_access') and not (e in d.read_access) or
+            not (e in d.read_access') and (e in d.read_access)
+    } |
+    #changed <= 1
 }
 
 pred changePermissionTeamTransition {
     some d : Data, t : Team | {
         grantTeamReadAccess[d,t] or
         grantTeamWriteAccess[d,t]
-
-        // FRAME: no other data or person had their permissions changed
-        all d2 : Data - d, e: Employee - t.members | {
-            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
-            e.data' = e.data
-        }
     }
+
+    // at most one data has its permissions changed
+    let changed = {d: Data | 
+        d.read_access' != d.read_access or
+        d.write_access' != d.write_access
+    } |
+    #changed <= 1
+
+    // at most one team has its permissions changed -- people not on the team should not have any permissions changed
+    let changedEmployees = { e: Employee |
+        some d: Data |
+            e in d.read_access' iff e not in d.read_access or
+            e in d.write_access' iff e not in d.write_access
+        } |
+    {some t: Team |
+        changedEmployees = t.members and
+        {all t2: Team - t | no (changedEmployees & t2.members) }  
+    }    
 }
 
 pred changePermissionTransition {
@@ -273,9 +264,8 @@ pred changePermissionTransition {
 pred accessControlStarting {
     // HRTeam members can read all EmployeeData
     all d: EmployeeData, e: Employee | {
-        e in d.read_access iff (e.team in HRTeam or e in d.owner)
+        e in d.read_access iff e.team in HRTeam
         e.team in HRTeam implies e in d.read_access
-        e in d.write_access iff (e in d.owner)
     }
     
     // only the owner can read or write PrivateData
@@ -288,13 +278,12 @@ pred accessControlStarting {
         e in d.owner.^manager implies e in d.read_access
         // only direct manager has write access
         e = d.owner.manager implies e in d.write_access
-        e in d.write_access iff (e in d.owner or e = d.owner.manager)
     }
 
     // no person should own more than 2 files for readability purposes in the visualizer
     all e: Employee | {
         let owned = {d: Data | e in d.owner} |
-        (#owned <= 2 and #owned >=0)
+        #owned <= 2
     }
 }
 
@@ -303,32 +292,30 @@ Only one persons permissions or teams permissions should change at each state
 hr team: employee data privileges should never change
 pass in a type of data, and if it is that type of data, then execute that specifically
 */
-pred accessControlTransition {
+pred accessControlTransition{
     // at most one employee permissions changed already enforcded in changePermissionIndividualTransition 
 
-    one d: Data |{
+    // hr team access should not change between states
 
-        // hr team access should not change between states
+    some d: Data |{
         d in EmployeeData implies{
             all member : HRTeam.members{
-                all d : Data {
+                all d : Data{
                     member in d.read_access implies {
                         member in d.read_access'
                     }
                 }
             }
-
-            changePermissionGivenTransition[d]
         }
 
-        // if a person no longer is the owner of thee document, initially they should not be able to both read and write
+        // // if a person no longer is the owner of thee document, initially they should not be able to both read and write
         d in PrivateData implies{
             all d: PrivateData, e: Employee {
                 e not in d.owner' implies not (e in d.write_access')
             }
             some e : Employee | {
                 grantReadAccess[d,e] or
-                removeReadAccess[d,e]
+                removeReadAccess[d,e] 
             }
         }
 
@@ -336,44 +323,149 @@ pred accessControlTransition {
         // that the propagation of managers also having access does not hold and should be changed
         // as we percolate up from manager to manager
         d in CompanyData implies{
-            one e: Employee | transferCompanyOwner[d,e]
-        }
-
-        // FRAME: no other data changes
-        // all d2 : Data - d | d2.read_access' = d2.read_access and d2.write_access' = d2.write_access
-        all d2 : Data - d | {
-            d2.read_access'  = d2.read_access
-            d2.write_access' = d2.write_access
-            d2.owner'        = d2.owner
-        }
-
-        // untouched employees: their data set stays the same
-        all e : Employee - (d.owner + d.owner') | {
-            e.data' = e.data
+            transferCompanyOwner
         }
     }
 }
 
-pred transferCompanyOwner [d: Data, newOwner: Employee] {
+pred transferCompanyOwner{
     /* 
     Transfer Company Data Rules:
         - At some state we would want owner ship of the document to change
         so that logic for companyData in accessControlTransition can execute
     */
-    newOwner != d.owner
+    some d: CompanyData {
+        let newOwners = { e : Employee | e != d.owner} |
+        some e: newOwners | {
+                // firstly, make sure that read and write access of the former employee is gone
+                // removeReadAccess[d, d.owner]
+                // removeWriteAccess[d, d.owner]
 
-    let oldChain   = d.owner  + d.owner.^manager,
-        newChain   = newOwner + newOwner.^manager,
-        newWriters = newOwner + newOwner.manager | 
-    {
-        d.owner'        = newOwner
-        d.read_access'  = (d.read_access  - oldChain) + newChain
-        d.write_access' = (d.write_access - oldChain) + newWriters
+                d.owner not in d.read_access'
+                d.owner not in d.write_access'
 
-        newOwner in d.read_access' and newOwner in d.write_access'
-        all m: Employee | m in d.write_access' implies m in d.read_access'
+                // Remove read and write access for all managers of the former owner
+                all m: Employee |
+                    m in d.owner.^manager => {
+                        m not in d.read_access'
+                        m not in d.write_access'
+                        // removeReadAccess[d, m]
+                        // removeWriteAccess[d, m]
+                    }
+                d.owner' != d.owner
+                d.owner' = e
+                e in d.read_access'
+                e in d.write_access'
+                // grant access for new employee
+                all m: Employee |
+                    m in e.manager => {
+                        m in d.read_access'
+                        m in d.write_access'
+                        // grantReadAccess[d,m] 
+                        // grantWriteAccess[d,m]
+                    } and
+                    m in e.manager.^manager => {
+                        e in d.read_access'
+                        // grantReadAccess[d,m]  
+                    }
+                    and
+                    (m not in e.manager and m not in e.manager.^manager) =>{
+                        m not in d.read_access'
+                        m not in d.write_access'
+                    }
+
+        }
     }
 }
+
+// pred promotion{
+//     some e : Employee {
+//         e in Engineer implies {
+//             e.team.members' = e.team.members - e.manager
+
+//             e.manager' = e.manager // basically moved to the middle
+//             e.team' = e.team
+//             e.team.team_manager' = e // become themanager of the team you were previously an employee of
+//             all emp : e.team.members - {e.manager} + {e}{
+//                 emp.manager' = e 
+//                 emp.team' = emp.team
+//             }
+//             // creates team?
+//             some t : Team {
+//                 t.team_manager' = e.manager 
+//                 t.members' = t.members + e.manager
+//                 e.team.team_above' = t
+//                 // e.team' = t
+//             }
+//         }
+
+//     }
+// }
+
+// pred promotion {
+//   some e: Employee | {
+//     e in Engineer implies{
+//     // Create a new team
+//     some newTeam: Team {
+//       // Promote the employee by assigning them as the new team's manager
+//       newTeam.team_manager' = e
+
+//       // Add them to the new team
+//       newTeam.members' = newTeam.members + e
+
+//       // Update employee's team
+//       e.team' = newTeam
+
+//       // Keep their current manager (optional)
+//       e.manager' = e.manager
+
+//       // Set newTeam as above the old team
+//       e.team.team_above' = newTeam
+//     }
+
+//     // All other fields remain the same
+//     e.data' = e.data
+//   }
+// }
+// }
+pred promotion {
+  some e: Employee | {
+
+    // Create a new team for the promoted engineer
+    some newTeam: Team {
+      // Promote e to manager of the new team
+      newTeam.team_manager' = e
+      newTeam.members' = newTeam.members + e
+      e.team' = newTeam
+
+      // Link old team to the new one
+      e.team.team_above' = newTeam
+    }
+
+    // All other employee team assignments remain the same
+    all other: Employee - e | {
+      // Engineers stay on their teams
+      e in Engineer => other.team' = other.team
+
+      e.manager' = e.manager
+
+
+      // HR employees stay on their teams
+      e in HRTeam.members => other.team' = other.team
+
+      // if not enginer or hr
+      other.team.members' = other.team.members
+    }
+
+    // Optional: preserve manager field and data for the promoted employee
+    e.manager' = e.manager
+    e.data' = e.data
+  }
+}
+
+
+
+
 
 pred initState {
     wellformed_employees
@@ -381,125 +473,25 @@ pred initState {
     wellformed_files
 }
 
-pred randomTraces {
+pred traces {
     initState
     accessControlStarting
-    always {wellformed_data and wellformed_files}
-    always {validStateChange}
-    always {changePermissionTransition}
-    eventually {changePermissionTeamTransition}
-}
-
-pred accessControlTraces {
-    initState
-    accessControlStarting
-    always {wellformed_data and wellformed_files}
     always {validStateChange}
     always {accessControlTransition}
-    HRTeamSize
-    some d: CompanyData, e: Employee | eventually transferCompanyOwner[d, e]
-    some d : PrivateData | eventually {
-        some e : Employee - d.owner |
-            grantReadAccess[d, e] or removeReadAccess[d, e]
-    }
-    some d : EmployeeData | eventually changePermissionGivenTransition[d]
+    always {promotion}
+    // eventually {transferCompanyOwner}
 }
 
-pred HRTeamSize {
-    #HRTeam.members >= 2 and #HRTeam.members <= 4
-}
-
-run_randomPermissionsTrace: run {
-    randomTraces
-} for exactly 7 Employee, exactly 3 Team, exactly 1 PrivateData, exactly 1 EmployeeData, exactly 2 CompanyData
+sevenEmployee: run {
+    traces
+} for exactly 7 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
 
 
-run_tenEmployee: run {
-    accessControlTraces
-} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
-
-run_sevenEmployee: run {
-    accessControlTraces
-} for exactly 7 Employee, exactly 3 Team, exactly 1 PrivateData, exactly 1 EmployeeData, exactly 2 CompanyData
-
------------- SECURITY -------------
-
-pred onlyAllowedMayRead {
-    all d : Data, e : Employee |
-    let permitted =
-        (e in d.owner) or
-        (d in EmployeeData and e in HRTeam.members) or
-        (d in CompanyData and (e in d.owner.^manager)) or
-        (d in PrivateData and e in d.owner) |
-    e in d.read_access implies permitted
-}
-
--- Question 1: Are any employees able to access (read-only) data that has not been explicitly shared with them in the starting state?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_onlyAllowedReadAccess: check { accessControlTraces implies onlyAllowedMayRead }
+companyData: run {
+    traces
+} for exactly 10 Employee//for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 4 CompanyData
 
 
-pred privateDataNoFullAccessForNonOwner {
-    all d : PrivateData, e : Employee |
-        e not in d.owner implies
-        not (e in d.read_access and e in d.write_access)
-}
-
--- Question 2: Are any employees able to read and write private data that they do not own, in any state?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_privateDataNoFullAccess: check { accessControlTraces implies always { privateDataNoFullAccessForNonOwner }}
-
-
-pred privateDataOwnerKeepsSomeAccess {
-    all d : PrivateData | d.owner in d.read_access + d.write_access
-}
-
--- Question 3: Does the owner of private data always have some access to it, in any state?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_privateDataOwnerAccess: check { accessControlTraces implies always { privateDataOwnerKeepsSomeAccess }}
-
-
-pred employeeDataHRRead {
-    all hr : HRTeam.members, d : EmployeeData | hr in d.read_access
-}
-
--- Question 4: Are all HR employees able to read all employee data, in any state?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_hrReadImmutable: check { accessControlTraces implies always { employeeDataHRRead } }
-
-pred singleFileAccessChange {
-    let changed = { d : Data |
-        d.read_access' != d.read_access or
-        d.write_access' != d.write_access } |
-    #changed <= 1
-}
-
--- Question 5: Is it possible for more than one file to have its access changed in a single state transition?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_singleFileChangeCheck: check { accessControlTraces implies always { singleFileAccessChange } }
-
-pred lingeringAccessAfterTransfer {
-    some d : CompanyData |
-        d.owner' != d.owner and
-        (let oldChain = d.owner + d.owner.^manager,
-            newChain = d.owner' + d.owner'.^manager
-        | let leaked  = (oldChain - newChain) | 
-        some ( leaked & (d.read_access' + d.write_access') ))
-}
-
--- Question 6: Can an employee retain access to a file after it has been transferred to another employee, in any state?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_transferLeakCheck: check {accessControlTraces implies not (eventually { lingeringAccessAfterTransfer })}
-
-pred allFileDataBreach {
-    all d : Data | {
-        all e : Employee |{
-            e in d.read_access
-            e in d.write_access
-        }  
-    }
-}
-
--- Question 7: Is it possible for a data breach to occur where all employees to have read and write access to all data, in any state?
--- UNSAT: which shows us that there is no counterexample, verifying this security aspect
-security_allFileDataBreachCheck: check {accessControlTraces implies not (eventually { allFileDataBreach })} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
+engineer: run {
+    traces
+} for exactly 1 Engineer

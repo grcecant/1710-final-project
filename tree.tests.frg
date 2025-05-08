@@ -113,13 +113,12 @@ pred change_permission_individual_transition_choice {
 }
 
 pred at_most_one_employee_data_changed {
-    // at most one employee has their permissions changed
-    let changed = {e: Employee |
-        some d: Data |
-            (e in d.read_access') and not (e in d.read_access) or
-            not (e in d.read_access') and (e in d.read_access)
-    } |
-    #changed <= 1
+    some d: Data, e: Employee | {
+        all d2 : Data - d, e2: Employee - e | {
+            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+            e2.data' = e2.data
+        }
+    }
 }
 
 pred change_team_permission_transition_choice {
@@ -130,30 +129,19 @@ pred change_team_permission_transition_choice {
 }
 
 pred at_most_one_data_changed {
-    // at most one data has its permissions changed
-    let changed = {d: Data | 
-        d.read_access' != d.read_access or
-        d.write_access' != d.write_access
-    } |
-    #changed <= 1
-}
-
-pred at_most_one_team_changed {
-    let changedEmployees = { e: Employee |
-        some d: Data |
-            e in d.read_access' iff e not in d.read_access or
-            e in d.write_access' iff e not in d.write_access
-        } |
-    {some t: Team |
-        changedEmployees = t.members and
-        {all t2: Team - t | no (changedEmployees & t2.members) }  
-    }  
+    some d: Data, t: Team {
+        all d2 : Data - d, e: Employee - t.members | {
+            (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+            e.data' = e.data
+        }
+    }
 }
 
 pred access_control_hr_team_read {
     all d: EmployeeData, e: Employee | {
-        e in d.read_access iff e.team in HRTeam
+        e in d.read_access iff (e.team in HRTeam or e in d.owner)
         e.team in HRTeam implies e in d.read_access
+        e in d.write_access iff (e in d.owner)
     }
 }
 
@@ -168,13 +156,14 @@ pred access_control_company_data {
         e in d.owner.^manager implies e in d.read_access
         // only direct manager has write access
         e = d.owner.manager implies e in d.write_access
+        e in d.write_access iff (e in d.owner or e = d.owner.manager)
     }
 }
 
 pred access_control_no_more_than_2_files {
     all e: Employee | {
         let owned = {d: Data | e in d.owner} |
-        #owned <= 2
+        (#owned <= 2 and #owned >= 0)
     }
 }
 
@@ -193,7 +182,11 @@ pred access_control_transition_hr_team {
 }
 
 pred access_control_transition_company_data_transfer {
-    some d: Data | d in CompanyData implies transferCompanyOwner
+    some d: Data | {
+        d in CompanyData implies{
+            some e: Employee | transferCompanyOwner[d,e]
+        }
+    }
 }
 
 pred access_control_private_data {
@@ -210,48 +203,19 @@ pred access_control_private_data {
     }
 }
 
-pred transfer_owner_test_pred {
-    some d: CompanyData {
-        let newOwners = { e : Employee | e != d.owner} |
-        some e: newOwners | {
-                // firstly, make sure that read and write access of the former employee is gone
-                // removeReadAccess[d, d.owner]
-                // removeWriteAccess[d, d.owner]
+pred transfer_owner_test_pred[ d: Data, newOwner: Employee] {
+    newOwner != d.owner
 
-                d.owner not in d.read_access'
-                d.owner not in d.write_access'
+    let oldChain   = d.owner  + d.owner.^manager,
+        newChain   = newOwner + newOwner.^manager,
+        newWriters = newOwner + newOwner.manager | 
+    {
+        d.owner'        = newOwner
+        d.read_access'  = (d.read_access  - oldChain) + newChain
+        d.write_access' = (d.write_access - oldChain) + newWriters
 
-                // Remove read and write access for all managers of the former owner
-                all m: Employee |
-                    m in d.owner.^manager => {
-                        m not in d.read_access'
-                        m not in d.write_access'
-                        // removeReadAccess[d, m]
-                        // removeWriteAccess[d, m]
-                    }
-                d.owner' != d.owner
-                d.owner' = e
-                e in d.read_access'
-                e in d.write_access'
-                // grant access for new employee
-                all m: Employee |
-                    m in e.manager => {
-                        m in d.read_access'
-                        m in d.write_access'
-                        // grantReadAccess[d,m] 
-                        // grantWriteAccess[d,m]
-                    } and
-                    m in e.manager.^manager => {
-                        e in d.read_access'
-                        // grantReadAccess[d,m]  
-                    }
-                    and
-                    (m not in e.manager and m not in e.manager.^manager) =>{
-                        m not in d.read_access'
-                        m not in d.write_access'
-                    }
-
-        }
+        newOwner in d.read_access' and newOwner in d.write_access'
+        all m: Employee | m in d.write_access' implies m in d.read_access'
     }
 }
 
@@ -304,7 +268,6 @@ test suite for changePermissionIndividualTransition {
 test suite for changePermissionTeamTransition {
     assert change_team_permission_transition_choice is necessary for changePermissionTeamTransition
     assert at_most_one_data_changed is necessary for changePermissionTeamTransition
-    assert at_most_one_team_changed is necessary for changePermissionTeamTransition
 }
 
 test suite for changePermissionTransition {
@@ -326,16 +289,18 @@ test suite for accessControlTransition {
 }
 
 test suite for transferCompanyOwner {
-    assert transfer_owner_test_pred is necessary for transferCompanyOwner
+    assert all d: Data, e: Employee | transfer_owner_test_pred[d, e] is necessary for transferCompanyOwner[d, e]
 }
 
-test suite for transferCompanyOwner {
-    assert transfer_owner_test_pred is necessary for transferCompanyOwner
-}
-
-test suite for traces {
-    assert initState is necessary for traces
-    assert always validStateChange is necessary for traces
+test suite for accessControlTraces {
+    assert initState is necessary for accessControlTraces
+    assert accessControlStarting is necessary for accessControlTraces
+    assert always wellformed_data is necessary for accessControlTraces
+    assert always wellformed_files is necessary for accessControlTraces
+    assert always validStateChange is necessary for accessControlTraces
+    assert always accessControlTransition is necessary for accessControlTraces
+    assert HRTeamSize is necessary for accessControlTraces
+    assert some d: CompanyData, e: Employee | eventually transferCompanyOwner[d, e] is necessary for accessControlTraces
 }
 
 ------------ COMBINED TESTING ------------
@@ -349,7 +314,7 @@ test expect {
     } is checked
 
     grant_then_remove_read: {
-        traces
+        accessControlTraces
         eventually {
             some d: Data, e: Employee | {
                 grantReadAccess[d, e]
@@ -366,17 +331,17 @@ test expect {
     } is checked
 
     revoke_implies_prior_grant: {
-        traces implies (some d: Data, e: Employee | 
+        accessControlTraces implies (some d: Data, e: Employee | 
             {removeReadAccess[d, e] or removeWriteAccess[d, e]} implies once (grantReadAccess[d, e] or grantWriteAccess[d, e]))
     } is checked
 
     two_company_ownership_changes: {
-        traces
+        accessControlTraces
         some disj d1, d2: CompanyData | eventually d1.owner != d1.owner' and eventually d2.owner != d2.owner'
     } is sat
 
     hr_grant_indiv_revoke_safe: {
-        traces
+        accessControlTraces
         eventually {
             some d: EmployeeData, t: Team | {
                 all e: HRTeam.members | {
@@ -392,19 +357,19 @@ test expect {
     } is sat
 
     private_data_ownership_cannot_transfer: {
-        traces implies always {
+        accessControlTraces implies always {
             all d: PrivateData | d.owner = d.owner'
         }
     } is checked
 
     some_permission_change_each_state: {
-        traces implies always {
+        accessControlTraces implies always {
             some d: Data, e: Employee | (not e in d.read_access => e in d.read_access') or (not e in d.write_access => e in d.write_access')
         }
     } is checked
 
     hrNeverOwnsData: {
-        traces implies always {
+        accessControlTraces implies always {
             all d: Data | d.owner not in HRTeam.members
         }
     } is checked

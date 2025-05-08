@@ -14,6 +14,8 @@ We used Temporal Forge in our model because it made the most sense in helping us
 
 At the core of our model is the ability for a Data's access to change over time, depending on the type of data and the role of the employee. We developed our model in stages, and each stage proved more difficult and time-consuming than expected. We began by creating a simple structure of a company, but found that even this simple model required many intricate design choices—should the CEO have other members on their team? Should a team have multiple managers? How are we structuring the manager hierarchy? From here, we tacked on the idea of data ownership, which also led to discussions on how many owners a datum should have, who should have default read or write access, what type of data we wanted to represent, who decides permissions for a file, etc. We then began creating traces where ownership of files changed arbitrarily with changePermissionTransition, where either changePermissionIndividualTransition or changePermissionTeamTransition is called—essentially, in each state, one datum has at most one employee added to read or write access or removed from read or write access, or one datum has an entire team added to write or read access. Through these traces we wanted to ensure that our base model made sense and that we were able to generate longer traces where permissions changed through time, albeit somewhat arbitrarily. Lastly, we moved on to constraining changes in permission based on role and type of data. This proved to be the largest challenge for us. There was a great deal of nuance in our design decisions of what protocol of access control to choose, as well as ensuring correct/intended behavior of the model. 
 
+Our goals did change from our initial proposal, as we decided to really hone in on permissions sharing and modification over time rather than the job promotions aspect. We still attempted an implementation of promotions as an extension or reach goal, but the main brunt of our work is in tree.frg. In the file, we attempted to search for vulnerabilities, but ultimately found that the model was relatively safe against exploitation or data leakage through a few predicates we looked for counterexamples for. 
+
 <!-- (what the model proved) -->
 
 ### Scope, Tradeoffs, and Limitations
@@ -32,12 +34,6 @@ In addition, there was a large number of different permissions designs we could'
 2) Lends greater control to the owner, who is able to share write access with whomever they desire.
 
 3) Data can never be left uneditable, as there is always one owner and one person with write access.
-
-<!-- (explain goals) -->
-
-### Goals
-
-TBD
 
 ### Visualization
 

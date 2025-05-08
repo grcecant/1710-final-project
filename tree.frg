@@ -43,6 +43,13 @@ pred wellformed_employees {
     no CEO.manager
 }
 
+pred wellformed_data {
+    all d: Data, e: Employee | {
+        d in e.data implies e in d.owner
+        e in d.owner implies d in e.data
+    }
+}
+
 pred wellformed_teams {
     // every team has one manager 
     all t: Team {
@@ -264,7 +271,7 @@ pred changePermissionTransition {
 pred accessControlStarting {
     // HRTeam members can read all EmployeeData
     all d: EmployeeData, e: Employee | {
-        e in d.read_access iff e.team in HRTeam
+        e in d.read_access iff (e.team in HRTeam or e in d.owner)
         e.team in HRTeam implies e in d.read_access
     }
     
@@ -300,7 +307,7 @@ pred accessControlTransition{
     some d: Data |{
         d in EmployeeData implies{
             all member : HRTeam.members{
-                all d : Data{
+                all d : Data {
                     member in d.read_access implies {
                         member in d.read_access'
                     }
@@ -326,7 +333,8 @@ pred accessControlTransition{
             transferCompanyOwner
         }
 
-       all d2 : Data - d | (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
+        // // // FRAME: no other data changes
+        all d2 : Data - d | (d2.read_access' = d2.read_access and d2.write_access' = d2.write_access)
     }
 }
 
@@ -396,14 +404,17 @@ pred randomTraces {
 pred traces {
     initState
     accessControlStarting
+    always {wellformed_data}
     always {validStateChange}
     always {accessControlTransition}
+    // DO WE WANT THIS BELOW??
+    // always {changePermissionTransition}
     // eventually {transferCompanyOwner}
 }
 
-sevenEmployee: run {
+tenEmployee: run {
     traces
-} for exactly 7 Employee, exactly 3 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 2 CompanyData
+} for exactly 10 Employee, exactly 4 Team, exactly 2 PrivateData, exactly 2 EmployeeData, exactly 4 CompanyData
 
 
 companyData: run {
@@ -415,13 +426,12 @@ companyData: run {
 ------------ SECURITY -------------
 
 pred onlyAllowedMayRead {
-  all d : Data, e : Employee |
+    all d : Data, e : Employee |
     let permitted =
         (e in d.owner) or
         (d in EmployeeData and e in HRTeam.members) or
         (d in CompanyData and (e in d.owner.^manager)) or
-        (d in PrivateData and e in d.owner)
-    |
+        (d in PrivateData and e in d.owner) |
     e in d.read_access implies permitted
 }
 
@@ -431,9 +441,9 @@ onlyAllowedReadAccess: check {traces implies onlyAllowedMayRead }
 
 
 pred privateDataNoFullAccessForNonOwner {
-  all d : PrivateData, e : Employee |
-    e not in d.owner implies
-      not (e in d.read_access and e in d.write_access)
+    all d : PrivateData, e : Employee |
+        e not in d.owner implies
+        not (e in d.read_access and e in d.write_access)
 }
 
 -- Question 2: Are any employees able to read and write private data that they do not own, in any state?
@@ -442,8 +452,7 @@ privateDataNoFullAccess: check { traces implies always { privateDataNoFullAccess
 
 
 pred privateDataOwnerKeepsSomeAccess {
-  all d : PrivateData |
-    d.owner in d.read_access + d.write_access
+    all d : PrivateData | d.owner in d.read_access + d.write_access
 }
 
 -- Question 3: Does the owner of private data always have some access to it, in any state?
@@ -452,8 +461,7 @@ privateDataOwnerAccess: check { traces implies always { privateDataOwnerKeepsSom
 
 
 pred employeeDataHRRead {
-  all hr : HRTeam.members, d : EmployeeData |
-    hr in d.read_access
+    all hr : HRTeam.members, d : EmployeeData | hr in d.read_access
 }
 
 -- Question 4: Are all HR employees able to read all employee data, in any state?
@@ -461,13 +469,40 @@ pred employeeDataHRRead {
 hrReadImmutable: check { traces implies always { employeeDataHRRead } }
 
 pred singleFileAccessChange {
-  let changed = { d : Data |
+    let changed = { d : Data |
         d.read_access' != d.read_access or
         d.write_access' != d.write_access } |
-  #changed <= 1
+    #changed <= 1
 }
 
 -- Question 5: Is it possible for more than one file to have its access changed in a single state transition?
 -- UNSAT: which shows us that there is no counterexample, verifying this security aspect
 singleFileChangeCheck: check { traces implies always { singleFileAccessChange } }
 
+pred lingeringAccessAfterTransfer {
+    some d : CompanyData |
+        d.owner' != d.owner and
+        (let oldOwner = d.owner | 
+            let oldChain = oldOwner.^manager |
+        (
+            oldOwner in d.read_access' or
+            oldOwner in d.write_access' or
+            some (oldChain & d.read_access') or
+            some (oldChain & d.write_access')
+        ))
+}
+
+transferLeakCheck: check {traces implies not (eventually { lingeringAccessAfterTransfer })}
+
+pred allFileDataBreach {
+    all d : Data | {
+        all e : Employee |{
+            e in d.read_access
+            e in d.write_access
+        }  
+    }
+}
+
+-- Question 6: Is it possible for a data breach to occur where all employees to have read and write access to all data, in any state?
+-- UNSAT: which shows us that there is no counterexample, verifying this security aspect
+allFileDataBreachCheck: check {traces implies not (eventually { allFileDataBreach })}
